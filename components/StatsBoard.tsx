@@ -2,6 +2,7 @@ import React from 'react';
 import { StudyTask, DifficultyLevel } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { DIFFICULTY_SCORE } from '../constants';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface StatsBoardProps {
   tasks: StudyTask[];
@@ -23,6 +24,10 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ tasks, theme, isDarkMode
   }));
 
   const totalHours = tasks.reduce((sum, t) => sum + t.estimatedHours, 0);
+  
+  // Define overload threshold (e.g., > 12 hours total in the list is considered heavy)
+  const OVERLOAD_THRESHOLD = 12;
+  const isOverloaded = totalHours > OVERLOAD_THRESHOLD;
 
   const axisColor = isDarkMode ? '#94a3b8' : '#94a3b8'; // Slate-400
   const gridColor = isDarkMode ? '#334155' : '#f1f5f9';
@@ -35,15 +40,44 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ tasks, theme, isDarkMode
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Workload Chart */}
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-lg shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-700 flex flex-col relative overflow-hidden group">
-        <div className="p-8 flex flex-col h-full">
+      <div className={`bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-lg shadow-slate-200/50 dark:shadow-black/20 border flex flex-col relative overflow-hidden group transition-all duration-300
+          ${isOverloaded 
+            ? 'border-rose-200 dark:border-rose-900 ring-4 ring-rose-50 dark:ring-rose-900/20' 
+            : 'border-white dark:border-slate-700'}
+      `}>
+        {/* Overload Background Tint */}
+        {isOverloaded && (
+           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-400 opacity-5 rounded-full blur-3xl pointer-events-none -mr-10 -mt-10"></div>
+        )}
+
+        <div className="p-8 flex flex-col h-full relative z-10">
           <div className="flex justify-between items-start mb-8">
              <div>
                 <h4 className="text-slate-800 dark:text-slate-100 font-extrabold text-lg tracking-tight">Khối Lượng Công Việc</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Phân bổ giờ học (Ước tính)</p>
+                {isOverloaded ? (
+                  <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1.5 animate-pulse">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Cảnh báo: Khối lượng bài vở cao!
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    Phân bổ giờ học hợp lý
+                  </p>
+                )}
              </div>
-             <div className="bg-slate-50 dark:bg-slate-700 px-4 py-2 rounded-2xl text-slate-700 dark:text-slate-200 font-bold text-sm shadow-sm border border-slate-100 dark:border-slate-600">
-                <span className="text-base mr-1" style={{ color: theme.palette[1] }}>{totalHours}</span> giờ
+             
+             {/* Total Hours Badge */}
+             <div className={`px-4 py-2 rounded-2xl font-bold text-sm shadow-sm border transition-colors duration-300 flex items-center gap-1.5
+                ${isOverloaded 
+                  ? 'bg-rose-50 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 border-rose-100 dark:border-rose-800' 
+                  : 'bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-100 dark:border-slate-600'}
+             `}>
+                {isOverloaded && <AlertTriangle className="w-4 h-4" />}
+                <span>
+                   <span className="text-base mr-1" style={{ color: isOverloaded ? undefined : theme.palette[1] }}>{totalHours}</span> 
+                   giờ
+                </span>
              </div>
           </div>
           
@@ -80,7 +114,7 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ tasks, theme, isDarkMode
                   {workloadData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={chartColors[index % 4]} 
+                      fill={isOverloaded && entry.hours >= 4 ? '#f43f5e' : chartColors[index % 4]} // Highlight specific heavy tasks in red if overloaded
                       className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
                     />
                   ))}

@@ -3,11 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartStudy AI Guidebook</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Primary Meta Tags -->
+    <title>SmartStudy AI - Lập Kế Hoạch Học Tập & Quản Lý Thời Gian Thông Minh</title>
+    <meta name="description" content="Trợ lý AI giúp học sinh lập kế hoạch học tập cá nhân hóa, phân tích khối lượng công việc và quản lý thời gian hiệu quả. Cân bằng giữa điểm số và sức khỏe tinh thần (Wellbeing)." />
+    <meta name="keywords" content="SmartStudy AI, lập kế hoạch học tập, quản lý thời gian, AI cho học sinh, thời khóa biểu thông minh, cân bằng cuộc sống, study planner, wellbeing" />
+    <meta name="author" content="SmartStudy AI" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#60A5FA" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SmartStudy AI - Trợ Lý Học Tập & Wellbeing" />
+    <meta property="og:description" content="Sử dụng AI để tối ưu hóa lịch học, tránh quá tải và đạt kết quả cao nhất." />
+    <meta property="og:site_name" content="SmartStudy AI" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="SmartStudy AI - Trợ Lý Học Tập & Wellbeing" />
+    <meta property="twitter:description" content="Sử dụng AI để tối ưu hóa lịch học, tránh quá tải và đạt kết quả cao nhất." />
+
+    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <!-- Tailwind & Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Structured Data (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SmartStudy AI",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "VND"
+      },
+      "description": "Ứng dụng AI giúp học sinh lập kế hoạch học tập, quản lý thời gian và cân bằng cuộc sống.",
+      "featureList": "AI Study Plan, Time Management, Workload Analysis, Wellbeing Check"
+    }
+    </script>
+
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -78,18 +119,18 @@
       .animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       .animate-fade-in { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6"
   }
 }
 </script>

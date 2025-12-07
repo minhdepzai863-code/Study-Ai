@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { StudyTask, DifficultyLevel } from '../types';
-import { Trash2, Calendar, Clock, Search, Filter, ArrowUpDown, X, Zap, ListFilter } from 'lucide-react';
+import { Trash2, Calendar, Search, Filter, ArrowUpDown, X, ListFilter } from 'lucide-react';
 import { DIFFICULTY_SCORE } from '../constants';
 
 interface DataTableProps {
@@ -51,26 +51,68 @@ export const DataTable: React.FC<DataTableProps> = ({ tasks, onRemoveTask, theme
     return result;
   }, [tasks, searchTerm, filterDifficulty, sortBy]);
 
-  // Artistic Illustration for empty state
+  // Enhanced Dynamic Illustration for empty state
   const EmptyIllustration = () => (
-    <div className="relative w-56 h-56 mb-6 opacity-90 animate-float">
-      <svg viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="120" cy="120" r="90" className="fill-slate-50 dark:fill-slate-800 transition-colors" />
-        <circle cx="120" cy="120" r="70" className="stroke-slate-200 dark:stroke-slate-700 transition-colors" strokeWidth="2" strokeDasharray="8 8"/>
-        
-        {/* Floating papers */}
-        <g transform="translate(70, 60) rotate(-10)">
-           <rect width="80" height="100" rx="12" className="fill-white dark:fill-slate-700 stroke-slate-200 dark:stroke-slate-600 transition-colors shadow-sm" strokeWidth="2"/>
-           <path d="M20 30H60" className="stroke-slate-100 dark:stroke-slate-500 transition-colors" strokeWidth="6" strokeLinecap="round"/>
-           <path d="M20 50H60" className="stroke-slate-100 dark:stroke-slate-500 transition-colors" strokeWidth="6" strokeLinecap="round"/>
+    <div className="relative w-72 h-72 mb-4 group cursor-pointer perspective-1000">
+      <svg viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full overflow-visible">
+        <defs>
+          <filter id="scribble-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+            <feOffset dx="2" dy="4" result="offsetblur"/>
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.3"/>
+            </feComponentTransfer>
+            <feMerge> 
+              <feMergeNode/>
+              <feMergeNode in="SourceGraphic"/> 
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* 1. Background Atmosphere - Rotating Dashed Ring (Time) */}
+        <g className="origin-center animate-[spin_20s_linear_infinite] opacity-30 dark:opacity-20">
+           <circle cx="150" cy="150" r="110" stroke={theme.palette[0]} strokeWidth="2" strokeDasharray="12 12" strokeLinecap="round" className="transition-colors duration-500" />
         </g>
         
-        <g transform="translate(90, 80) rotate(5)">
-           <rect width="80" height="100" rx="12" className="fill-white dark:fill-slate-700 stroke-slate-200 dark:stroke-slate-600 drop-shadow-md transition-colors" strokeWidth="2"/>
-           <path d="M20 30H60" className="stroke-slate-200 dark:stroke-slate-400 transition-colors" strokeWidth="6" strokeLinecap="round"/>
-           <path d="M20 50H60" className="stroke-slate-200 dark:stroke-slate-400 transition-colors" strokeWidth="6" strokeLinecap="round"/>
-           <path d="M20 70H50" stroke={theme.palette[1]} strokeWidth="6" strokeLinecap="round"/>
-           <circle cx="65" cy="70" r="4" fill="#F43F5E"/>
+        {/* 2. Floating Orbs/Particles */}
+        <circle cx="50" cy="100" r="4" fill={theme.palette[2]} className="animate-float opacity-40">
+           <animate attributeName="opacity" values="0.4;0.8;0.4" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="250" cy="200" r="6" fill={theme.palette[1]} className="animate-float-delayed opacity-40">
+           <animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite" />
+        </circle>
+        
+        {/* 3. The Clipboard / Paper Stack (Central Element) */}
+        <g className="animate-float origin-center transition-transform duration-500 group-hover:scale-105" filter="url(#scribble-shadow)">
+           {/* Back Paper */}
+           <rect x="85" y="75" width="130" height="160" rx="16" transform="rotate(-5 150 150)" className="fill-white dark:fill-slate-700 stroke-slate-200 dark:stroke-slate-600 transition-colors" strokeWidth="3"/>
+           
+           {/* Front Paper */}
+           <rect x="95" y="70" width="130" height="160" rx="16" transform="rotate(2 150 150)" className="fill-white dark:fill-slate-800 stroke-slate-200 dark:stroke-slate-500 transition-colors" strokeWidth="3"/>
+           
+           {/* Lines on Paper (Hand drawn style curves) */}
+           <path d="M120 110H190" className="stroke-slate-100 dark:stroke-slate-600 transition-colors" strokeWidth="6" strokeLinecap="round"/>
+           <path d="M120 135H190" className="stroke-slate-100 dark:stroke-slate-600 transition-colors" strokeWidth="6" strokeLinecap="round"/>
+           <path d="M120 160H170" className="stroke-slate-100 dark:stroke-slate-600 transition-colors" strokeWidth="6" strokeLinecap="round"/>
+
+           {/* Checkbox marks (Empty) */}
+           <rect x="195" y="105" width="12" height="12" rx="3" stroke={theme.palette[0]} strokeWidth="2" fill="none" className="opacity-50"/>
+           <rect x="195" y="130" width="12" height="12" rx="3" stroke={theme.palette[0]} strokeWidth="2" fill="none" className="opacity-50"/>
+        </g>
+
+        {/* 4. The Magic Pencil (Interactive) */}
+        <g className="animate-float-delayed origin-center">
+           <g className="transition-transform duration-500 group-hover:translate-x-4 group-hover:-translate-y-4 group-hover:rotate-12">
+             <path d="M220 180 L250 80 L270 85 L240 185 Z" fill={theme.palette[1]} stroke="white" strokeWidth="2" className="drop-shadow-md"/>
+             <path d="M220 180 L240 185 L228 200 Z" fill={theme.palette[0]} />
+             <path d="M250 80 L270 85" stroke="white" strokeWidth="2"/>
+           </g>
+        </g>
+        
+        {/* 5. "Add" Hint - Dashed box appearing on hover */}
+        <g className="opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
+           <rect x="110" y="100" width="100" height="80" rx="10" stroke={theme.palette[2]} strokeWidth="2" strokeDasharray="6 6" fill="none" className="animate-pulse"/>
+           <path d="M150 120 V160 M130 140 H170" stroke={theme.palette[2]} strokeWidth="3" strokeLinecap="round" className="opacity-60"/>
         </g>
       </svg>
     </div>
@@ -78,11 +120,13 @@ export const DataTable: React.FC<DataTableProps> = ({ tasks, onRemoveTask, theme
 
   if (tasks.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-700 flex flex-col items-center justify-center min-h-[600px] transition-all duration-500 overflow-hidden relative">
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-700 flex flex-col items-center justify-center min-h-[600px] transition-all duration-500 overflow-hidden relative group">
         <EmptyIllustration />
-        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2 tracking-tight">Danh sách trống</h3>
+        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2 tracking-tight">Chưa có nhiệm vụ nào</h3>
         <p className="text-slate-500 dark:text-slate-400 max-w-xs mt-2 text-center leading-relaxed font-medium">
-          Hãy thêm bài tập mới để AI bắt đầu phân tích.
+          Không gian này đang chờ đợi kế hoạch của bạn.
+          <br/>
+          <span className="text-xs opacity-70 block mt-1">(Bấm "Thêm nhiệm vụ" hoặc đồng bộ Calendar để bắt đầu)</span>
         </p>
       </div>
     );

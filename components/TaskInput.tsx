@@ -170,7 +170,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({ onAddTask, theme }) => {
 
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide ml-1 flex items-center gap-2">
-              Thời gian ước tính
+              Thời gian ước tính (Max 24h)
             </label>
             <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                <input
