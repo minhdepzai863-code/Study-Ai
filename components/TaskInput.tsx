@@ -22,7 +22,8 @@ export const TaskInput: React.FC<TaskInputProps> = ({ onAddTask, theme }) => {
     e.preventDefault();
     if (!subject || !deadline) return;
 
-    const cleanHours = Math.max(0.5, Math.min(hours, 20)); 
+    // Allow up to 24 hours
+    const cleanHours = Math.max(0.5, Math.min(hours, 24)); 
 
     const newTask: StudyTask = {
       id: uuidv4(),
@@ -176,7 +177,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({ onAddTask, theme }) => {
                 required
                 type="range"
                 min="0.5"
-                max="10"
+                max="24"
                 step="0.5"
                 value={hours}
                 onChange={(e) => setHours(parseFloat(e.target.value))}

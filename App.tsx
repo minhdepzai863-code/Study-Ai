@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PenTool, GraduationCap, ArrowRight, Sparkles, CheckCircle2, ArrowDown, Palette, Moon, Sun, Layers } from 'lucide-react';
+import { PenTool, GraduationCap, ArrowRight, Sparkles, CheckCircle2, ArrowDown, Palette, Moon, Sun, Layers, BookOpen, Atom, Calculator, Lightbulb, Globe, Ruler, BrainCircuit } from 'lucide-react';
 import { TaskInput } from './components/TaskInput';
 import { DataTable } from './components/DataTable';
 import { StatsBoard } from './components/StatsBoard';
@@ -67,16 +67,48 @@ function App() {
            style={{ backgroundColor: activeTheme.palette[2] }}
         ></div>
 
-        {/* 4. Abstract Geometric Shapes (Visual Interest) */}
-        <svg className="absolute top-[15%] right-[10%] w-24 h-24 opacity-20 dark:opacity-5 animate-float-slow text-slate-400 fill-current" viewBox="0 0 100 100">
-           <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="10 5" />
-        </svg>
-        <svg className="absolute bottom-[20%] left-[5%] w-32 h-32 opacity-10 dark:opacity-5 animate-float text-slate-400 fill-current" viewBox="0 0 100 100">
-           <rect x="20" y="20" width="60" height="60" rx="10" stroke="currentColor" strokeWidth="2" fill="none" transform="rotate(15 50 50)" />
-        </svg>
-        <svg className="absolute top-[40%] left-[20%] w-16 h-16 opacity-20 dark:opacity-5 animate-float-delayed text-slate-400" viewBox="0 0 100 100">
-           <path d="M50 0 L100 100 L0 100 Z" stroke="currentColor" strokeWidth="2" fill="none" />
-        </svg>
+        {/* 4. Educational Illustrations (Subtle & Themed) */}
+        {/* Top Left - Book */}
+        <BookOpen 
+          className="absolute top-[12%] left-[2%] w-24 h-24 opacity-5 dark:opacity-[0.03] rotate-[-12deg] animate-float transition-colors duration-1000" 
+          style={{ color: activeTheme.palette[1] }} 
+        />
+        
+        {/* Bottom Right - Atom */}
+        <Atom 
+          className="absolute bottom-[15%] right-[2%] w-32 h-32 opacity-5 dark:opacity-[0.03] animate-float-delayed transition-colors duration-1000" 
+          style={{ color: activeTheme.palette[0] }} 
+        />
+        
+        {/* Middle Right - Calculator */}
+        <Calculator 
+          className="absolute top-[25%] right-[12%] w-20 h-20 opacity-5 dark:opacity-[0.03] rotate-[15deg] animate-float-slow transition-colors duration-1000" 
+          style={{ color: activeTheme.palette[2] }} 
+        />
+        
+        {/* Bottom Left - Lightbulb */}
+        <Lightbulb 
+          className="absolute bottom-[25%] left-[8%] w-24 h-24 opacity-5 dark:opacity-[0.03] rotate-[-10deg] animate-float transition-colors duration-1000" 
+          style={{ color: activeTheme.palette[1] }} 
+        />
+
+        {/* Top Center - Brain */}
+        <BrainCircuit 
+           className="absolute top-[8%] left-[45%] w-28 h-28 opacity-5 dark:opacity-[0.03] animate-float-slow transition-colors duration-1000"
+           style={{ color: activeTheme.palette[3] }}
+        />
+
+        {/* Middle Left - Ruler */}
+        <Ruler 
+           className="absolute top-[40%] left-[-2%] w-32 h-32 opacity-5 dark:opacity-[0.02] rotate-[45deg] animate-float-delayed transition-colors duration-1000"
+           style={{ color: activeTheme.palette[0] }}
+        />
+
+         {/* Bottom Center - Globe */}
+        <Globe
+           className="absolute bottom-[-5%] left-[35%] w-40 h-40 opacity-5 dark:opacity-[0.02] animate-float transition-colors duration-1000"
+           style={{ color: activeTheme.palette[2] }}
+        />
       </div>
 
       {/* --- Header --- */}
