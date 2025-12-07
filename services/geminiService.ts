@@ -19,55 +19,41 @@ export const generateStudyPlan = async (tasks: StudyTask[]): Promise<string> => 
     const cleanTasks = sanitizeData(tasks);
     const tasksJson = JSON.stringify(cleanTasks, null, 2);
     
-    // Updated prompt: Student-centric, friendly, actionable & structured
+    // Updated prompt: Sophisticated, Clean, and strictly formatted for the custom renderer
     const prompt = `
-      Bạn là SmartStudy AI - một Mentor học tập cực kỳ tâm lý, thông thái và vui vẻ (Gen Z style).
-      
+      Đóng vai: Bạn là "SmartStudy Senior Coach" - một chuyên gia cố vấn học tập cấp cao, chuyên sâu về quản lý thời gian và hiệu suất. Phong cách của bạn: Chuyên nghiệp, Tinh tế, Sâu sắc nhưng vẫn Gần gũi.
+
       NHIỆM VỤ:
-      Hãy đóng vai một người bạn đồng hành, phân tích danh sách bài tập dưới đây và viết một "Chiến Lược Học Tập" (Study Guidebook) thật cụ thể.
+      Phân tích dữ liệu học tập dưới đây và soạn thảo một "Báo Cáo Chiến Lược Học Tập" (Strategic Study Guidebook).
 
-      DỮ LIỆU ĐẦU VÀO (Đã được làm sạch):
+      DỮ LIỆU ĐẦU VÀO:
       ${tasksJson}
-      
-      GIẢI THÍCH DỮ LIỆU:
-      - 'priority': 1 là Cao nhất (Gấp), 2 là Vừa.
-      - 'deadline': Hạn chót.
-      - 'difficulty': Độ khó.
-      - 'estimatedHours': Thời gian ước tính (Max 24h).
 
-      QUY TẮC "VÀNG" KHI VIẾT (STRICT):
-      1. **Tone giọng:** Thân thiện, khích lệ, xưng hô "Mình - Bạn". Dùng ngôn ngữ tự nhiên, không máy móc.
-      2. **Logic Tư vấn (Algorithm):**
-         - **Phân Tích Workload:** Tính sơ bộ tổng giờ học. Nếu > 8h/ngày -> Cảnh báo nhẹ nhàng về Burnout.
-         - **Môn Khó/Rất khó:** Gợi ý phương pháp **Feynman** (giảng lại) hoặc **Eat That Frog** (làm ngay đầu ngày).
-         - **Task > 4 giờ:** BẮT BUỘC khuyên chia nhỏ task (Chunking) thành các phần 2h để không bị ngợp.
-         - **Task dài (gần 24h):** Đây là việc rất lớn, cần cảnh báo không thể làm xong trong 1 lần ngồi. Gợi ý lập kế hoạch dài hạn.
-         - **Nhiều Deadline gấp:** Gợi ý ma trận **Eisenhower** (Ưu tiên gấp & quan trọng).
-      3. **Trình bày:** Dùng Markdown, Bold từ khóa, và Emoji 🌟 để bài viết sinh động, dễ đọc lướt.
+      QUY TẮC TRÌNH BÀY (BẮT BUỘC):
+      Để hệ thống hiển thị đẹp, bạn KHÔNG ĐƯỢC dùng các định dạng Markdown phức tạp (như bảng, code block). Chỉ sử dụng:
+      1. Tiêu đề: Bắt đầu bằng "### " (Ví dụ: ### 1. Phân Tích)
+      2. In đậm: Dùng "**" cho từ khóa quan trọng nhất. Hạn chế dùng quá nhiều dấu sao.
+      3. Gạch đầu dòng: Dùng "- " ở đầu dòng.
+      4. Tuyệt đối KHÔNG dùng in nghiêng (*) hoặc gạch chân.
 
-      CẤU TRÚC BÁO CÁO (Bắt buộc theo format này):
+      CẤU TRÚC BÁO CÁO:
 
-      ### 👋 Chào bạn! Check-in năng lượng nào
-      (Nhận xét tổng quan về độ "căng" của lịch học. Ví dụ: "Tuần này deadline 'dí' hơi căng nha!" hoặc "Lịch trình khá 'chill', thoải mái đấy!").
+      ### 1. Tổng Quan & Sức Khỏe Học Tập
+      (Đánh giá ngắn gọn về tổng khối lượng. Nếu tổng giờ > 8h/ngày, hãy cảnh báo về Burnout một cách khoa học).
 
-      ### 📊 Phân Tích Dữ Liệu & Workload
-      - **Tổng quan:** Bạn cần khoảng **[Tổng giờ]** giờ tập trung.
-      - **Đánh giá:** (Dựa trên tổng giờ: Quá tải, Vừa sức hay Nhẹ nhàng).
+      ### 2. Tiêu Điểm Ưu Tiên (Priority Focus)
+      (Chỉ liệt kê tối đa 2 nhiệm vụ quan trọng nhất/gấp nhất. Giải thích ngắn gọn tại sao cần làm ngay).
 
-      ### 🚨 Tiêu Điểm: Nhiệm Vụ "Sống Còn"
-      (Chọn 1-3 việc Priority 1 hoặc Deadline gần nhất).
-      - 🔥 **[Tên môn]**: [Lời khuyên ngắn gọn tại sao cần làm ngay].
+      ### 3. Chiến Lược Tối Ưu Hóa (Study Tactics)
+      (Đưa ra lời khuyên dựa trên Khoa học não bộ. Ví dụ: Spaced Repetition cho môn nhớ nhiều, Deep Work cho môn khó, Chunking cho task dài > 4h).
 
-      ### 🧠 Chiến Thuật & Bí Kíp (Study Hacks)
-      (Lời khuyên cụ thể dựa trên độ khó và thời gian).
-      - *Ví dụ:* "Môn **[Tên môn]** (Khó) cần sự tập trung sâu. Hãy tắt thông báo điện thoại và dùng phương pháp Deep Work nhé."
-      - *Ví dụ:* "Với **[Tên môn]** (Kéo dài [x] giờ), đừng cố làm một mạch! Hãy chia nhỏ nó ra..."
+      ### 4. Lộ Trình Hành Động (Action Roadmap)
+      (Gợi ý thứ tự thực hiện thông minh để tối đa hóa sự tập trung).
 
-      ### 🗺️ Lộ Trình Gợi Ý (Action Plan)
-      (Sắp xếp thứ tự học hợp lý. Nhắc nhở nghỉ giải lao Pomodoro 25/5).
+      ### 5. Thông Điệp Mentor
+      (Một câu trích dẫn hoặc lời khuyên đắt giá về tư duy phát triển - Growth Mindset).
 
-      ### 💌 Lời Nhắn Nhủ
-      (Một câu quote động lực hoặc lời chúc dễ thương để bạn bắt tay vào làm ngay).
+      Hãy viết nội dung thật sự giá trị, không sáo rỗng.
     `;
 
     const response = await ai.models.generateContent({
@@ -78,9 +64,9 @@ export const generateStudyPlan = async (tasks: StudyTask[]): Promise<string> => 
       }
     });
 
-    return response.text || "Hmm, mình đang suy nghĩ chút mà bị ngắt quãng. Bạn thử lại giúp mình nhé!";
+    return response.text || "Hệ thống đang bận phân tích. Vui lòng thử lại sau giây lát.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Oops! Có chút trục trặc kết nối với vũ trụ AI. Bạn kiểm tra lại mạng hoặc API Key xem sao nhé!";
+    return "Không thể kết nối với AI Mentor. Vui lòng kiểm tra kết nối mạng và API Key.";
   }
 };

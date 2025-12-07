@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StudyTask } from '../types';
 import { generateStudyPlan } from '../services/geminiService';
-import { Sparkles, Loader2, BookOpen, BrainCircuit } from 'lucide-react';
+import { Sparkles, Loader2, BookOpen, BrainCircuit, Quote } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -15,9 +15,63 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const handleGenerate = async () => {
     if (tasks.length === 0) return;
     setLoading(true);
+    setGuidebook(null); // Reset previous result
     const result = await generateStudyPlan(tasks);
     setGuidebook(result);
     setLoading(false);
+  };
+
+  // Custom function to render specific markdown elements cleanly
+  const renderMarkdown = (text: string) => {
+    if (!text) return null;
+
+    const lines = text.split('\n');
+    let inList = false;
+
+    return lines.map((line, index) => {
+      // 1. Headers (###)
+      if (line.startsWith('###')) {
+        return (
+          <h3 key={index} className="text-xl font-extrabold text-slate-800 dark:text-slate-100 mt-8 mb-4 flex items-center gap-2 tracking-tight">
+             <span className="w-1.5 h-6 rounded-full inline-block" style={{ backgroundColor: theme.palette[1] }}></span>
+             {line.replace(/^###\s+/, '')}
+          </h3>
+        );
+      }
+
+      // 2. Bold (**text**) - Simple parser
+      // This splits by ** and alternates normal/bold spans
+      const parseBold = (content: string) => {
+        const parts = content.split('**');
+        return parts.map((part, i) => 
+          i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white" style={{ color: theme.palette[0] }}>{part}</strong> : part
+        );
+      };
+
+      // 3. Lists (- item)
+      if (line.trim().startsWith('- ')) {
+        return (
+          <div key={index} className="flex items-start gap-3 mb-3 ml-1">
+             <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: theme.palette[2] }}></span>
+             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm md:text-base">
+               {parseBold(line.replace(/^- /, ''))}
+             </p>
+          </div>
+        );
+      }
+
+      // 4. Empty lines
+      if (line.trim() === '') {
+        return <div key={index} className="h-2"></div>;
+      }
+
+      // 5. Normal Text
+      return (
+        <p key={index} className="text-slate-600 dark:text-slate-300 leading-relaxed mb-2 text-sm md:text-base">
+          {parseBold(line)}
+        </p>
+      );
+    });
   };
 
   return (
@@ -54,7 +108,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" /> 
-                Đang suy nghĩ...
+                Đang phân tích...
               </>
             ) : (
               <>
@@ -81,13 +135,22 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                  <BookOpen className="w-5 h-5" />
               </div>
               <div>
-                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 tracking-tight">Kế Hoạch Học Tập</h3>
+                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 tracking-tight">Chiến Lược Học Tập</h3>
                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Được thiết kế riêng cho bạn</p>
               </div>
             </div>
-            <div className="p-8 md:p-10">
-               <div className="prose prose-slate dark:prose-invert max-w-none font-medium leading-loose text-slate-600 dark:text-slate-300">
-                  <div className="whitespace-pre-wrap">{guidebook}</div>
+            
+            <div className="p-8 md:p-10 relative">
+               {/* Decorative Quote Icon */}
+               <Quote className="absolute top-8 right-8 w-12 h-12 text-slate-100 dark:text-slate-700 -rotate-12 pointer-events-none" />
+               
+               <div className="max-w-none">
+                  {renderMarkdown(guidebook)}
+               </div>
+
+               <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400 font-medium">
+                  <span>SmartStudy AI generated content</span>
+                  <span>{new Date().toLocaleDateString('vi-VN')}</span>
                </div>
             </div>
           </div>
