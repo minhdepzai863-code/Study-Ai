@@ -125,9 +125,9 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                   const trimmed = line.trim();
                   if (!trimmed) return null;
 
-                  // Parse Bold (**text**)
+                  // Parse Bold (**text**) - REMOVED BACKGROUND COLOR
                   const parseBold = (str: string) => str.split('**').map((part, i) => 
-                    i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700/50 px-1 rounded-md mx-0.5">{part}</strong> : part
+                    i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white">{part}</strong> : part
                   );
 
                   // List Item
