@@ -256,7 +256,7 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content Area - Refactored Grid System */}
+      {/* Main Content Area - Refactored Responsive Grid System */}
       <main className="flex-grow w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         
         {/* Banner Section */}
@@ -285,10 +285,10 @@ function App() {
 
         {activeTab === 'input' ? (
           <div className="animate-fade-in">
-            {/* GRID LAYOUT: 12 Columns */}
+            {/* GRID LAYOUT: Stacks on mobile, 12 Cols on LG */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Left Column: Input Form (4/12) - Sticky */}
-              <div className="lg:col-span-4 xl:col-span-3 sticky top-28 z-20 space-y-8">
+              {/* Left Column: Input Form (4/12) - Sticky only on large screens */}
+              <div className="lg:col-span-4 xl:col-span-3 lg:sticky lg:top-28 z-20 space-y-8">
                 <TaskInput onAddTask={handleAddTask} theme={activeTheme} />
               </div>
               
@@ -323,13 +323,13 @@ function App() {
             
             {/* Row 2: Split View - AI Guide (Left) & Action Plan (Right) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-               {/* Main Strategy Guide - 2/3 width */}
-               <div className="lg:col-span-8">
+               {/* Main Strategy Guide - 2/3 width on LG */}
+               <div className="lg:col-span-8 order-2 lg:order-1">
                   <AIPlanner tasks={tasks} theme={activeTheme} />
                </div>
 
-               {/* Actionable Timeline - 1/3 width, Sticky Sidebar */}
-               <div className="lg:col-span-4 sticky top-24">
+               {/* Actionable Timeline - 1/3 width, Sticky Sidebar on LG */}
+               <div className="lg:col-span-4 order-1 lg:order-2 lg:sticky lg:top-24">
                   <DailyActionPlan 
                     tasks={tasks} 
                     onToggleCompletion={handleToggleTaskCompletion} 

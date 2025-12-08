@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { StudyTask } from '../types';
 import { generateStudyPlan, refineStudyPlan } from '../services/geminiService';
@@ -92,7 +93,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             <div 
               key={index} 
               className={`
-                relative rounded-[2rem] p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up
+                relative rounded-[2rem] p-6 sm:p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up
                 ${isQuoteSection 
                   ? 'bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border-2' 
                   : 'bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 shadow-sm'}
@@ -134,7 +135,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     return (
                       <div key={lineIdx} className="flex gap-3 items-start group">
                         <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-150" style={{ backgroundColor: theme.palette[1] }}></span>
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[1.05rem]">
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-[1.05rem]">
                           {parseBold(trimmed.substring(2))}
                         </p>
                       </div>
@@ -154,7 +155,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
 
                   // Regular Paragraph
                   return (
-                    <p key={lineIdx} className="text-slate-600 dark:text-slate-300 leading-relaxed text-[1.05rem]">
+                    <p key={lineIdx} className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-[1.05rem]">
                       {parseBold(trimmed)}
                     </p>
                   );
@@ -190,7 +191,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
       
       {/* Sidebar Control */}
       <div className="lg:col-span-4 space-y-6">
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-8 border border-white/20 dark:border-slate-800 shadow-xl relative overflow-hidden sticky top-28">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 border border-white/20 dark:border-slate-800 shadow-xl relative overflow-hidden lg:sticky lg:top-28">
            {/* Decorative bg blob */}
            <div className="absolute -top-10 -right-10 w-32 h-32 opacity-20 rounded-full blur-2xl" style={{ background: theme.palette[0] }}></div>
 
@@ -248,14 +249,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
         ) : guidebook ? (
           <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col">
             {/* Header */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center backdrop-blur-md">
+            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-6 sm:p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center backdrop-blur-md">
                <div className="flex items-center gap-5">
                   <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600">
                     <FileText className="w-8 h-8" style={{ color: theme.palette[0] }}/>
                   </div>
                   <div>
-                     <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Study Plan Guidebook</h1>
-                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Được thiết kế riêng cho bạn</p>
+                     <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Study Plan Guidebook</h1>
+                     <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">Được thiết kế riêng cho bạn</p>
                   </div>
                </div>
                <div className="text-right hidden sm:block">
@@ -265,7 +266,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             </div>
             
             {/* Content Body - Box in Box Layout */}
-            <div className="p-8 md:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20">
+            <div className="p-6 sm:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20">
                {refining ? (
                   <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                     <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: theme.palette[0] }} />
@@ -285,13 +286,13 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     <MessageSquare className="w-4 h-4" />
                     Phản hồi & Điều chỉnh
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-col sm:flex-row">
                     <input 
                       type="text" 
                       value={userComment}
                       onChange={(e) => setUserComment(e.target.value)}
                       placeholder="Ví dụ: Mình muốn dành thêm thời gian cho môn Toán..."
-                      className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner"
+                      className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner w-full"
                       style={{ 
                         // @ts-ignore
                         '--tw-ring-color': theme.palette[0] 
@@ -301,13 +302,13 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     <button 
                       onClick={handleRefine}
                       disabled={!userComment.trim() || refining}
-                      className="px-6 rounded-xl text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       style={{ 
                          background: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})`
                       }}
                     >
                       <Send className="w-4 h-4" />
-                      <span className="hidden sm:inline">Gửi</span>
+                      <span>Gửi</span>
                     </button>
                   </div>
                </div>
