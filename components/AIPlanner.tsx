@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StudyTask } from '../types';
 import { generateStudyPlan, refineStudyPlan } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Activity, Target, Brain, Map, Quote, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Activity, Target, Brain, Map, Quote, CheckCircle2, Download, Copy, Check } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -12,6 +12,7 @@ interface AIPlannerProps {
 export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [loading, setLoading] = useState(false);
   const [refining, setRefining] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Initialize state from localStorage if available
   const [guidebook, setGuidebook] = useState<string | null>(() => {
@@ -60,6 +61,26 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     setGuidebook(result);
     setRefining(false);
     setUserComment('');
+  };
+
+  const handleDownload = () => {
+    if (!guidebook) return;
+    const blob = new Blob([guidebook], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `SmartStudy_Plan_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopy = () => {
+    if (!guidebook) return;
+    navigator.clipboard.writeText(guidebook);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const renderMarkdown = (text: string) => {
@@ -259,9 +280,28 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                      <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">Được thiết kế riêng cho bạn</p>
                   </div>
                </div>
-               <div className="text-right hidden sm:block">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ngày lập</span>
-                  <div className="font-bold text-slate-700 dark:text-slate-300 text-lg">{new Date().toLocaleDateString('vi-VN')}</div>
+               
+               {/* Actions */}
+               <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleCopy}
+                    className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                    title="Sao chép nội dung"
+                  >
+                    {copied ? <Check className="w-5 h-5 text-emerald-500"/> : <Copy className="w-5 h-5"/>}
+                  </button>
+                  <button 
+                    onClick={handleDownload}
+                    className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                    title="Tải xuống (Markdown)"
+                  >
+                    <Download className="w-5 h-5"/>
+                  </button>
+                  
+                  <div className="text-right hidden sm:block ml-4 pl-4 border-l border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ngày lập</span>
+                      <div className="font-bold text-slate-700 dark:text-slate-300 text-lg">{new Date().toLocaleDateString('vi-VN')}</div>
+                  </div>
                </div>
             </div>
             
