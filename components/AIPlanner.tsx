@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudyTask } from '../types';
 import { generateStudyPlan, refineStudyPlan } from '../services/geminiService';
 import { Sparkles, Loader2, FileText, MessageSquare, Send, Activity, Target, Brain, Map, Quote, CheckCircle2 } from 'lucide-react';
@@ -11,9 +11,24 @@ interface AIPlannerProps {
 export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [loading, setLoading] = useState(false);
   const [refining, setRefining] = useState(false);
-  const [guidebook, setGuidebook] = useState<string | null>(null);
+  
+  // Initialize state from localStorage if available
+  const [guidebook, setGuidebook] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('smartstudy-guidebook');
+    }
+    return null;
+  });
+  
   const [userComment, setUserComment] = useState('');
   const [step, setStep] = useState(0); // 0: Idle, 1: Cleaning, 2: Analyzing, 3: Writing, 4: Done
+
+  // Save guidebook to localStorage whenever it changes
+  useEffect(() => {
+    if (guidebook) {
+      localStorage.setItem('smartstudy-guidebook', guidebook);
+    }
+  }, [guidebook]);
 
   const handleGenerate = async () => {
     if (tasks.length === 0) return;
