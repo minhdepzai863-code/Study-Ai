@@ -2,7 +2,7 @@ import React from 'react';
 import { StudyTask, DifficultyLevel } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { DIFFICULTY_SCORE } from '../constants';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Activity, PartyPopper } from 'lucide-react';
 
 interface StatsBoardProps {
   tasks: StudyTask[];
@@ -17,166 +17,185 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ tasks, theme, isDarkMode
   })).filter(d => d.value > 0);
 
   const workloadData = tasks.map(t => ({
-    name: t.subject.length > 10 ? t.subject.substring(0, 8) + '...' : t.subject,
+    name: t.subject.length > 8 ? t.subject.substring(0, 6) + '..' : t.subject,
     fullSubject: t.subject,
     hours: t.estimatedHours,
+    isCompleted: t.isCompleted,
     score: DIFFICULTY_SCORE[t.difficulty]
   }));
 
   const totalHours = tasks.reduce((sum, t) => sum + t.estimatedHours, 0);
-  
-  // Define overload threshold (e.g., > 12 hours total in the list is considered heavy)
+  const completedHours = tasks.filter(t => t.isCompleted).reduce((sum, t) => sum + t.estimatedHours, 0);
+  const progressPercentage = totalHours > 0 ? Math.round((completedHours / totalHours) * 100) : 0;
+
   const OVERLOAD_THRESHOLD = 12;
   const isOverloaded = totalHours > OVERLOAD_THRESHOLD;
+  const isAllDone = progressPercentage === 100 && tasks.length > 0;
 
-  const axisColor = isDarkMode ? '#94a3b8' : '#94a3b8'; // Slate-400
+  // Accessible Pastel Colors for Charts
+  const chartColors = [
+    theme.palette[0], // Primary
+    theme.palette[1], // Secondary
+    theme.palette[2], // Accent
+    '#cbd5e1',        // Slate-300
+  ];
+
+  const textColor = isDarkMode ? '#cbd5e1' : '#64748b';
   const gridColor = isDarkMode ? '#334155' : '#f1f5f9';
-  const tooltipBg = isDarkMode ? '#1e293b' : '#ffffff';
-  const tooltipText = isDarkMode ? '#f8fafc' : '#1e293b';
-
-  // Use the pastel palette from the theme
-  const chartColors = theme.palette;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Workload Chart */}
-      <div className={`bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-lg shadow-slate-200/50 dark:shadow-black/20 border flex flex-col relative overflow-hidden group transition-all duration-300
-          ${isOverloaded 
-            ? 'border-rose-200 dark:border-rose-900 ring-4 ring-rose-50 dark:ring-rose-900/20' 
-            : 'border-white dark:border-slate-700'}
-      `}>
-        {/* Overload Background Tint */}
-        {isOverloaded && (
-           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-400 opacity-5 rounded-full blur-3xl pointer-events-none -mr-10 -mt-10"></div>
+      
+      {/* Progress & Workload Report */}
+      <div className={`glass-panel rounded-[2rem] p-8 relative overflow-hidden transition-all duration-300 shadow-lg ${isOverloaded ? 'ring-2 ring-rose-100 dark:ring-rose-900' : ''}`}>
+        
+        <div className="flex justify-between items-start mb-8">
+           <div>
+              <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2 tracking-tight">
+                 Tiến Độ & Workload
+                 {isOverloaded && !isAllDone && <span className="animate-pulse text-[10px] font-bold text-rose-500 uppercase tracking-wide px-2 py-0.5 bg-rose-50 rounded-full">Quá tải</span>}
+                 {isAllDone && <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide px-2 py-0.5 bg-emerald-50 rounded-full flex items-center gap-1"><PartyPopper className="w-3 h-3"/> Hoàn tất</span>}
+              </h3>
+              <p className="text-sm font-medium text-slate-400 mt-1">Đã hoàn thành {completedHours}/{totalHours} giờ</p>
+           </div>
+           
+           <div className={`flex flex-col items-end`}>
+              <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${isAllDone ? 'bg-emerald-50 text-emerald-600' : (isOverloaded ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600')}`}>
+                 {isAllDone ? <CheckCircle2 className="w-4 h-4"/> : (isOverloaded ? <AlertTriangle className="w-4 h-4"/> : <Activity className="w-4 h-4"/>)}
+                 <span>{progressPercentage}% xong</span>
+              </div>
+           </div>
+        </div>
+
+        {/* Modern Progress Bar */}
+        <div className="mb-8">
+           <div className="w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-1">
+             <div 
+                className="h-full rounded-full transition-all duration-1000 ease-out shadow-sm" 
+                style={{ 
+                  width: `${progressPercentage}%`, 
+                  backgroundImage: isAllDone 
+                    ? `linear-gradient(to right, #34d399, #10b981)`
+                    : `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})`
+                }}
+             />
+           </div>
+        </div>
+
+        {isOverloaded && !isAllDone && (
+           <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-2xl flex gap-3 text-sm text-rose-700 dark:text-rose-300">
+             <Info className="w-5 h-5 flex-shrink-0 opacity-80" />
+             <p className="font-medium">Khối lượng này vượt quá {OVERLOAD_THRESHOLD}h. Hãy cân nhắc chia nhỏ công việc hoặc dời deadline.</p>
+           </div>
+        )}
+        
+        {isAllDone && (
+           <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl flex gap-3 text-sm text-emerald-700 dark:text-emerald-300">
+             <PartyPopper className="w-5 h-5 flex-shrink-0 opacity-80" />
+             <p className="font-medium">Tuyệt vời! Bạn đã hoàn thành tất cả nhiệm vụ trong danh sách.</p>
+           </div>
         )}
 
-        <div className="p-8 flex flex-col h-full relative z-10">
-          <div className="flex justify-between items-start mb-8">
-             <div>
-                <h4 className="text-slate-800 dark:text-slate-100 font-extrabold text-lg tracking-tight">Khối Lượng Công Việc</h4>
-                {isOverloaded ? (
-                  <p className="text-xs text-rose-500 font-bold mt-1 flex items-center gap-1.5 animate-pulse">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Cảnh báo: Khối lượng bài vở cao!
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    Phân bổ giờ học hợp lý
-                  </p>
-                )}
-             </div>
-             
-             {/* Total Hours Badge */}
-             <div className={`px-4 py-2 rounded-2xl font-bold text-sm shadow-sm border transition-colors duration-300 flex items-center gap-1.5
-                ${isOverloaded 
-                  ? 'bg-rose-50 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 border-rose-100 dark:border-rose-800' 
-                  : 'bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-100 dark:border-slate-600'}
-             `}>
-                {isOverloaded && <AlertTriangle className="w-4 h-4" />}
-                <span>
-                   <span className="text-base mr-1" style={{ color: isOverloaded ? undefined : theme.palette[1] }}>{totalHours}</span> 
-                   giờ
-                </span>
-             </div>
-          </div>
+        <div className="w-full h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={workloadData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fill: textColor, fontSize: 11, fontWeight: 500 }} 
+                axisLine={false} 
+                tickLine={false} 
+                dy={10}
+              />
+              <YAxis 
+                tick={{ fill: textColor, fontSize: 11, fontWeight: 500 }} 
+                axisLine={false} 
+                tickLine={false} 
+              />
+              <Tooltip 
+                 cursor={{fill: isDarkMode ? '#334155' : '#f8fafc', opacity: 0.5}}
+                 contentStyle={{ 
+                   borderRadius: '16px', 
+                   border: 'none', 
+                   boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                   padding: '16px', 
+                   backgroundColor: isDarkMode ? '#1e293b' : '#fff',
+                   color: isDarkMode ? '#fff' : '#000'
+                 }}
+              />
+              <Bar 
+                dataKey="hours" 
+                name="Giờ học" 
+                radius={[8, 8, 8, 8]}
+                barSize={36}
+              >
+                {workloadData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.isCompleted ? '#cbd5e1' : (isOverloaded && entry.hours >= 4 ? '#fda4af' : chartColors[index % chartColors.length])}
+                    opacity={entry.isCompleted ? 0.3 : 1}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Difficulty Pie Chart */}
+      <div className="glass-panel rounded-[2rem] p-8 relative overflow-hidden flex flex-col justify-between shadow-lg">
+        <div className="mb-4">
+           <h3 className="font-bold text-xl text-slate-800 dark:text-white tracking-tight">Cấu Trúc Độ Khó</h3>
+           <p className="text-sm font-medium text-slate-400 mt-1">Tỷ lệ phân bố các mức độ nhiệm vụ</p>
+        </div>
+
+        <div className="w-full h-[320px] relative flex-grow">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={difficultyData}
+                cx="50%"
+                cy="50%"
+                innerRadius={80}
+                outerRadius={120}
+                paddingAngle={6}
+                dataKey="value"
+                stroke="none"
+                cornerRadius={8}
+              >
+                {difficultyData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={chartColors[(index + 1) % chartColors.length]}
+                    strokeWidth={0}
+                  />
+                ))}
+              </Pie>
+              <Tooltip 
+                 contentStyle={{ 
+                   borderRadius: '16px', 
+                   border: 'none', 
+                   boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                   backgroundColor: isDarkMode ? '#1e293b' : '#fff'
+                 }}
+              />
+              <Legend 
+                 verticalAlign="bottom" 
+                 height={36} 
+                 iconType="circle"
+                 formatter={(value) => <span style={{ color: textColor, fontWeight: 600, fontSize: '12px' }}>{value}</span>}
+              />
+            </PieChart>
+          </ResponsiveContainer>
           
-          <div className="flex-grow w-full min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={workloadData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fill: axisColor, fontSize: 11, fontWeight: 600 }} 
-                  axisLine={false} 
-                  tickLine={false} 
-                  interval={0}
-                  dy={10}
-                />
-                <YAxis 
-                  tick={{ fill: axisColor, fontSize: 11 }} 
-                  axisLine={false} 
-                  tickLine={false} 
-                />
-                <Tooltip 
-                   cursor={{fill: isDarkMode ? '#334155' : '#f8fafc', radius: 8}}
-                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px 16px', backgroundColor: tooltipBg }}
-                   labelStyle={{ fontWeight: 'bold', color: tooltipText, marginBottom: '0.25rem', fontSize: '13px' }}
-                   itemStyle={{ color: tooltipText, fontSize: '13px' }}
-                />
-                <Bar 
-                  dataKey="hours" 
-                  name="Số giờ học" 
-                  radius={[8, 8, 8, 8]} 
-                  barSize={32}
-                  animationDuration={1500}
-                >
-                  {workloadData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={isOverloaded && entry.hours >= 4 ? '#f43f5e' : chartColors[index % 4]} // Highlight specific heavy tasks in red if overloaded
-                      className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Center Text */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] text-center pointer-events-none">
+             <span className="text-5xl font-extrabold block text-slate-800 dark:text-slate-100 tracking-tighter">{tasks.length}</span>
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Môn học</span>
           </div>
         </div>
       </div>
 
-      {/* Difficulty Distribution Chart */}
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-lg shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-700 flex flex-col relative overflow-hidden group">
-        <div className="p-8 flex flex-col h-full">
-          <div className="mb-6">
-             <h4 className="text-slate-800 dark:text-slate-100 font-extrabold text-lg tracking-tight">Phân Tích Độ Khó</h4>
-             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Tỷ lệ các môn theo mức độ</p>
-          </div>
-          
-          <div className="flex-grow w-full min-h-[300px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={difficultyData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={6}
-                  dataKey="value"
-                  stroke="none"
-                  cornerRadius={8}
-                >
-                  {difficultyData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={chartColors[(index + 1) % 4]} // Shift index slightly for variety
-                      className="hover:opacity-90 transition-opacity"
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '8px 12px', backgroundColor: tooltipBg }}
-                   itemStyle={{ fontWeight: 600, color: tooltipText, fontSize: '13px' }}
-                />
-                <Legend 
-                   verticalAlign="bottom" 
-                   height={36} 
-                   iconType="circle"
-                   iconSize={10}
-                   wrapperStyle={{ fontSize: '12px', paddingTop: '20px', fontWeight: 600, color: axisColor }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            {/* Center Text */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-4 text-center pointer-events-none">
-               <span className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tighter block" style={{ color: theme.palette[2] }}>{tasks.length}</span>
-               <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest">Môn học</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

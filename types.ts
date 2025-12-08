@@ -5,6 +5,12 @@ export enum DifficultyLevel {
   VERY_HARD = 'Rất khó'
 }
 
+export enum PriorityLevel {
+  HIGH = 'Cao',
+  MEDIUM = 'Trung bình',
+  LOW = 'Thấp'
+}
+
 export interface StudyTask {
   id: string;
   subject: string;
@@ -12,8 +18,10 @@ export interface StudyTask {
   deadline: string; // ISO Date string
   estimatedHours: number;
   difficulty: DifficultyLevel;
-  priority: number; // Calculated or user defined
+  priority: PriorityLevel; 
   icon: string; // Emoji or icon code
+  isCompleted?: boolean;
+  customSessionDuration?: string; // Allow user to override AI recommendation
 }
 
 export interface AnalysisResult {
@@ -37,4 +45,21 @@ export interface Theme {
     accent: string;
     background: string;
   };
+}
+
+// Gamification Types
+export interface UserProfile {
+  level: number;
+  currentXP: number;
+  nextLevelXP: number;
+  streakDays: number;
+  title: string;
+}
+
+export type TimerMode = 'FOCUS' | 'BREAK';
+
+export interface FocusSession {
+  taskId: string;
+  duration: number;
+  completedAt: Date;
 }

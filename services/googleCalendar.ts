@@ -1,4 +1,4 @@
-import { StudyTask, DifficultyLevel } from '../types';
+import { StudyTask, DifficultyLevel, PriorityLevel } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Scopes required for the application
@@ -80,8 +80,9 @@ const convertEventToTask = (event: any): StudyTask => {
     deadline: endDate.toISOString().split('T')[0],
     estimatedHours: Math.max(0.5, estimatedHours),
     difficulty: DifficultyLevel.MEDIUM, // Default difficulty
-    priority: 1,
-    icon: '📅'
+    priority: PriorityLevel.MEDIUM,
+    icon: '📅',
+    isCompleted: false
   };
 };
 
@@ -166,8 +167,9 @@ const getMockCalendarData = (): StudyTask[] => {
       deadline: nextWeek.toISOString().split('T')[0],
       estimatedHours: 4,
       difficulty: DifficultyLevel.HARD,
-      priority: 1,
-      icon: '📅'
+      priority: PriorityLevel.HIGH,
+      icon: '📅',
+      isCompleted: false
     },
     {
       id: uuidv4(),
@@ -176,8 +178,9 @@ const getMockCalendarData = (): StudyTask[] => {
       deadline: new Date(today.setDate(today.getDate() + 3)).toISOString().split('T')[0],
       estimatedHours: 2.5,
       difficulty: DifficultyLevel.MEDIUM,
-      priority: 2,
-      icon: '📅'
+      priority: PriorityLevel.MEDIUM,
+      icon: '📅',
+      isCompleted: false
     }
   ];
 };

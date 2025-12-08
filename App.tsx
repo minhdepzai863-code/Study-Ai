@@ -1,16 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { PenTool, GraduationCap, ArrowRight, Sparkles, CheckCircle2, ArrowDown, Palette, Moon, Sun, Layers, BookOpen, Atom, Calculator, Lightbulb, Globe, Ruler, BrainCircuit } from 'lucide-react';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  PenTool, GraduationCap, Sparkles, Palette, Moon, Sun, Layers, 
+  BookOpen, Calculator, Atom, Globe, Lightbulb, Ruler, Image, 
+  Music, Leaf, Shapes, Camera, Feather, Cloud, Flower2, Wind
+} from 'lucide-react';
 import { TaskInput } from './components/TaskInput';
 import { DataTable } from './components/DataTable';
 import { StatsBoard } from './components/StatsBoard';
 import { AIPlanner } from './components/AIPlanner';
+import { DailyActionPlan } from './components/DailyActionPlan';
 import { StudyTask } from './types';
 import { MOCK_TASKS, THEMES } from './constants';
 
+// Define Background Icon Sets
+const BACKGROUND_VARIANTS = {
+  educational: [
+    { Icon: Atom, className: "top-[15%] left-[10%] w-24 h-24" },
+    { Icon: Calculator, className: "bottom-[20%] right-[10%] w-32 h-32" },
+    { Icon: Globe, className: "top-[20%] right-[20%] w-20 h-20" },
+    { Icon: Lightbulb, className: "bottom-[30%] left-[25%] w-16 h-16" },
+    { Icon: Ruler, className: "top-[50%] left-[5%] w-28 h-28 rotate-45" },
+    { Icon: BookOpen, className: "bottom-[10%] left-[40%] w-24 h-24" },
+  ],
+  creative: [
+    { Icon: Palette, className: "top-[15%] left-[10%] w-24 h-24" },
+    { Icon: Music, className: "bottom-[20%] right-[10%] w-32 h-32" },
+    { Icon: Camera, className: "top-[20%] right-[20%] w-20 h-20" },
+    { Icon: Feather, className: "bottom-[30%] left-[25%] w-16 h-16" },
+    { Icon: Shapes, className: "top-[50%] left-[5%] w-28 h-28" },
+    { Icon: PenTool, className: "bottom-[10%] left-[40%] w-24 h-24" },
+  ],
+  nature: [
+    { Icon: Leaf, className: "top-[15%] left-[10%] w-24 h-24" },
+    { Icon: Sun, className: "bottom-[20%] right-[10%] w-32 h-32" },
+    { Icon: Cloud, className: "top-[20%] right-[20%] w-20 h-20" },
+    { Icon: Flower2, className: "bottom-[30%] left-[25%] w-16 h-16" },
+    { Icon: Wind, className: "top-[50%] left-[5%] w-28 h-28" },
+    { Icon: Globe, className: "bottom-[10%] left-[40%] w-24 h-24" }, // Reusing Globe as 'Earth'
+  ],
+  minimal: []
+};
+
+type BgMode = keyof typeof BACKGROUND_VARIANTS;
+
 function App() {
-  const [tasks, setTasks] = useState<StudyTask[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<StudyTask[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTasks = localStorage.getItem('smartstudy-tasks');
+      if (savedTasks) {
+        try {
+          return JSON.parse(savedTasks);
+        } catch (error) {
+          console.error("Error parsing saved tasks:", error);
+          return MOCK_TASKS;
+        }
+      }
+    }
+    return MOCK_TASKS;
+  });
+
   const [activeTab, setActiveTab] = useState<'input' | 'analysis'>('input');
-  const [currentThemeId, setCurrentThemeId] = useState('ocean');
+  const [currentThemeId, setCurrentThemeId] = useState('serene');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('themeMode') === 'dark';
@@ -18,7 +69,18 @@ function App() {
     return false;
   });
 
-  const activeTheme = Object.values(THEMES).find(t => t.id === currentThemeId) || THEMES.OCEAN;
+  const [bgMode, setBgMode] = useState<BgMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('bgMode') as BgMode) || 'educational';
+    }
+    return 'educational';
+  });
+
+  const activeTheme = Object.values(THEMES).find(t => t.id === currentThemeId) || THEMES.SERENE;
+
+  useEffect(() => {
+    localStorage.setItem('smartstudy-tasks', JSON.stringify(tasks));
+  }, [tasks]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -30,12 +92,24 @@ function App() {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    localStorage.setItem('bgMode', bgMode);
+  }, [bgMode]);
+
   const handleAddTask = (task: StudyTask) => {
     setTasks(prev => [...prev, task]);
   };
 
   const handleRemoveTask = (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleToggleTaskCompletion = (id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+  };
+
+  const handleUpdateTask = (id: string, updates: Partial<StudyTask>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const cycleTheme = () => {
@@ -45,136 +119,136 @@ function App() {
     setCurrentThemeId(THEMES[nextKey as keyof typeof THEMES].id);
   };
 
+  const cycleBgMode = () => {
+    const modes = Object.keys(BACKGROUND_VARIANTS) as BgMode[];
+    const currentIndex = modes.indexOf(bgMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setBgMode(modes[nextIndex]);
+  };
+
+  const bgLabel = useMemo(() => {
+    switch(bgMode) {
+      case 'educational': return 'Giáo dục';
+      case 'creative': return 'Sáng tạo';
+      case 'nature': return 'Thiên nhiên';
+      case 'minimal': return 'Tối giản';
+      default: return 'Background';
+    }
+  }, [bgMode]);
+
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-500 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'} pb-24`}>
+    <div 
+      className={`min-h-screen font-sans transition-colors duration-500 pb-24 relative flex flex-col ${isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}
+    >
       
-      {/* --- Rich Background Layer --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* 1. Base Gradient */}
-        <div className={`absolute inset-0 transition-opacity duration-700 ${isDarkMode ? 'opacity-0' : 'opacity-100'}`} 
-             style={{ background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)' }}></div>
-        
-        {/* 2. Dot Pattern Overlay */}
-        <div className="absolute inset-0 bg-dot-pattern opacity-[0.4] dark:opacity-[0.1]"></div>
+      {/* --- Accessible Modern Background Layer --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none">
+        <div className="absolute inset-0 bg-dot-pattern opacity-40"></div>
 
-        {/* 3. Floating Gradient Blobs (Softer & Pastel) */}
-        <div 
-           className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full blur-[120px] opacity-20 dark:opacity-10 animate-float transition-colors duration-1000"
-           style={{ backgroundColor: activeTheme.palette[0] }}
-        ></div>
-        <div 
-           className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[120px] opacity-20 dark:opacity-10 animate-float-delayed transition-colors duration-1000"
-           style={{ backgroundColor: activeTheme.palette[2] }}
-        ></div>
+        {/* Very subtle floating blobs - Reduced opacity for ADHD friendliness */}
+        <div className="absolute top-[-10%] left-[-5%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-[0.03] animate-float" style={{ backgroundColor: activeTheme.palette[1] }}></div>
+        <div className="absolute bottom-[-10%] right-[-5%] w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-[0.03] animate-float-delayed" style={{ backgroundColor: activeTheme.palette[2] }}></div>
+        <div className="absolute top-[40%] left-[30%] w-72 h-72 rounded-full mix-blend-multiply filter blur-3xl opacity-[0.03] animate-float-slow" style={{ backgroundColor: activeTheme.palette[0] }}></div>
 
-        {/* 4. Educational Illustrations (Subtle & Themed) */}
-        {/* Top Left - Book */}
-        <BookOpen 
-          className="absolute top-[12%] left-[2%] w-24 h-24 opacity-5 dark:opacity-[0.03] rotate-[-12deg] animate-float transition-colors duration-1000" 
-          style={{ color: activeTheme.palette[1] }} 
-        />
-        
-        {/* Bottom Right - Atom */}
-        <Atom 
-          className="absolute bottom-[15%] right-[2%] w-32 h-32 opacity-5 dark:opacity-[0.03] animate-float-delayed transition-colors duration-1000" 
-          style={{ color: activeTheme.palette[0] }} 
-        />
-        
-        {/* Middle Right - Calculator */}
-        <Calculator 
-          className="absolute top-[25%] right-[12%] w-20 h-20 opacity-5 dark:opacity-[0.03] rotate-[15deg] animate-float-slow transition-colors duration-1000" 
-          style={{ color: activeTheme.palette[2] }} 
-        />
-        
-        {/* Bottom Left - Lightbulb */}
-        <Lightbulb 
-          className="absolute bottom-[25%] left-[8%] w-24 h-24 opacity-5 dark:opacity-[0.03] rotate-[-10deg] animate-float transition-colors duration-1000" 
-          style={{ color: activeTheme.palette[1] }} 
-        />
-
-        {/* Top Center - Brain */}
-        <BrainCircuit 
-           className="absolute top-[8%] left-[45%] w-28 h-28 opacity-5 dark:opacity-[0.03] animate-float-slow transition-colors duration-1000"
-           style={{ color: activeTheme.palette[3] }}
-        />
-
-        {/* Middle Left - Ruler */}
-        <Ruler 
-           className="absolute top-[40%] left-[-2%] w-32 h-32 opacity-5 dark:opacity-[0.02] rotate-[45deg] animate-float-delayed transition-colors duration-1000"
-           style={{ color: activeTheme.palette[0] }}
-        />
-
-         {/* Bottom Center - Globe */}
-        <Globe
-           className="absolute bottom-[-5%] left-[35%] w-40 h-40 opacity-5 dark:opacity-[0.02] animate-float transition-colors duration-1000"
-           style={{ color: activeTheme.palette[2] }}
-        />
+        {/* Dynamic Background Icons - INCREASED OPACITY FOR VISIBILITY */}
+        {BACKGROUND_VARIANTS[bgMode].map((item, index) => {
+            const Icon = item.Icon;
+            return (
+                <Icon 
+                    key={index} 
+                    className={`absolute transition-all duration-1000 ${item.className} ${
+                        index % 2 === 0 ? 'animate-float' : 
+                        index % 3 === 0 ? 'animate-float-delayed' : 'animate-float-slow'
+                    }`} 
+                    style={{ 
+                      color: index % 2 === 0 ? activeTheme.palette[0] : activeTheme.palette[1],
+                      // Increased opacity to 0.12 (12%) so user can actually see them change
+                      opacity: 0.12 
+                    }} 
+                />
+            )
+        })}
       </div>
 
       {/* --- Header --- */}
-      <header className="sticky top-0 z-40 border-b border-white/40 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl transition-all duration-300">
-        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-8 lg:px-12 h-auto sm:h-20 flex flex-col sm:flex-row items-center justify-between py-4 gap-4 sm:gap-0">
-          <div className="flex items-center gap-3 self-start sm:self-center cursor-default group select-none">
+      <header className="sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all duration-300">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-default group select-none">
             <div 
-               className="p-2.5 rounded-2xl shadow-lg shadow-indigo-500/10 ring-1 ring-white/50 dark:ring-slate-700/50 group-hover:scale-105 transition-transform duration-300 ease-out"
-               style={{ background: `linear-gradient(135deg, ${activeTheme.palette[0]}, ${activeTheme.palette[1]})` }}
+               className="p-2.5 rounded-2xl shadow-sm transition-transform duration-500 ease-out group-hover:rotate-[15deg] group-hover:scale-105"
+               style={{ 
+                 background: `linear-gradient(135deg, ${activeTheme.palette[0]}, ${activeTheme.palette[1]})`
+               }}
             >
                <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
+            <div className="hidden sm:block">
+              <h1 className="text-xl font-extrabold tracking-tight leading-none text-slate-800 dark:text-slate-100">
                 SmartStudy AI
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 tracking-wide">Trợ lý Học tập & Wellbeing</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 tracking-widest uppercase">Student Assistant</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-             {/* Nav Tabs - Pill Style */}
-             <nav className="flex bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-2xl w-full sm:w-auto border border-white/40 dark:border-slate-700/50 backdrop-blur-sm">
+          <div className="flex items-center gap-4 sm:gap-6">
+             <nav className="flex bg-slate-100/60 dark:bg-slate-800/60 p-1 rounded-full relative backdrop-blur-sm shadow-inner">
                <button
                  onClick={() => setActiveTab('input')}
-                 className={`relative z-10 flex-1 sm:flex-none justify-center px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
+                 className={`relative z-10 px-5 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-full transition-all duration-300 flex items-center gap-2 ${
                    activeTab === 'input' 
-                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm ring-1 ring-black/5' 
-                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                     ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-100 scale-100' 
+                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 scale-95 hover:scale-100'
                  }`}
                >
-                 <PenTool className={`w-4 h-4 transition-colors ${activeTab === 'input' ? 'text-current' : 'opacity-70'}`} style={activeTab === 'input' ? { color: activeTheme.palette[0] } : {}}/>
-                 Dữ Liệu
+                 <PenTool className="w-4 h-4"/>
+                 <span className="hidden xs:inline">Nhập Liệu</span>
                </button>
                <button
                  onClick={() => setActiveTab('analysis')}
-                 className={`relative z-10 flex-1 sm:flex-none justify-center px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
+                 className={`relative z-10 px-5 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-full transition-all duration-300 flex items-center gap-2 ${
                    activeTab === 'analysis' 
-                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm ring-1 ring-black/5' 
-                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                     ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-100 scale-100' 
+                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 scale-95 hover:scale-100'
                  }`}
                >
-                 <Sparkles className={`w-4 h-4 transition-colors ${activeTab === 'analysis' ? 'text-current' : 'opacity-70'}`} style={activeTab === 'analysis' ? { color: activeTheme.palette[2] } : {}}/>
-                 Phân Tích
+                 <Sparkles className="w-4 h-4"/>
+                 <span className="hidden xs:inline">Phân Tích</span>
                </button>
              </nav>
              
-             {/* Action Buttons */}
+             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+
              <div className="flex items-center gap-2">
                 <button 
+                  onClick={cycleBgMode}
+                  className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 group relative border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                  title={`Background: ${bgLabel}`}
+                >
+                  <Image className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  <span className="absolute top-full right-0 mt-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                    {bgLabel}
+                  </span>
+                </button>
+
+                <button 
                   onClick={cycleTheme}
-                  className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-white/60 dark:border-slate-700 shadow-sm transition-all active:scale-95 hover:shadow-md"
+                  className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 group relative border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                   title={`Đổi chủ đề: ${activeTheme.name}`}
                 >
-                  <Palette className="w-5 h-5 transition-colors" style={{ color: activeTheme.palette[1] }} />
+                  <Palette className="w-5 h-5 transition-colors duration-500" style={{ color: activeTheme.palette[0] }} />
+                  <span className="absolute top-full right-0 mt-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                    {activeTheme.name}
+                  </span>
                 </button>
 
                 <button 
                   onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-white/60 dark:border-slate-700 shadow-sm transition-all active:scale-95 hover:shadow-md"
-                  title={isDarkMode ? "Chuyển sang chế độ Sáng" : "Chuyển sang chế độ Tối"}
+                  className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                 >
                   {isDarkMode ? (
                     <Sun className="w-5 h-5 text-amber-400" />
                   ) : (
-                    <Moon className="w-5 h-5 text-slate-500" />
+                    <Moon className="w-5 h-5 text-slate-600" />
                   )}
                 </button>
              </div>
@@ -182,115 +256,88 @@ function App() {
         </div>
       </header>
 
-      <main className="w-full max-w-[1800px] mx-auto px-6 sm:px-8 lg:px-12 py-10 relative z-10">
+      {/* Main Content Area - Refactored Grid System */}
+      <main className="flex-grow w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         
-        {/* Workflow Banner - Modern Glassmorphism */}
-        <div className="mb-10 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-12 shadow-lg shadow-slate-200/40 dark:shadow-black/20 border border-white/60 dark:border-slate-700 overflow-hidden relative group">
-          {/* Decorative Sparkle */}
-          <div className="absolute top-0 right-0 p-10 opacity-10 dark:opacity-5 transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-12 pointer-events-none">
-            <Layers className="w-64 h-64" style={{ color: activeTheme.palette[0] }} />
-          </div>
+        {/* Banner Section */}
+        <section className="mb-12">
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 shadow-sm group mx-auto backdrop-blur-sm">
+            <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-10 transition-opacity duration-700">
+              <Layers className="w-80 h-80" style={{ color: activeTheme.palette[0] }} />
+            </div>
+            
+            <div className="absolute top-0 left-0 w-1.5 h-full transition-colors duration-500" style={{ backgroundColor: activeTheme.palette[0] }}></div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 relative z-10">
-             <div className="max-w-lg">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/80 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 mb-4">
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: `linear-gradient(to right, ${activeTheme.palette[0]}, ${activeTheme.palette[1]})` }}></span>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Workflow</span>
+            <div className="relative z-10 p-8 sm:p-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider transition-colors duration-500" style={{ color: activeTheme.palette[0] }}>
+                  <Sparkles className="w-3 h-3" />
+                  <span>Trợ lý học tập thông minh</span>
                 </div>
-                <h3 className="text-3xl md:text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-4 leading-tight">
-                  Tối ưu hóa học tập <br className="hidden md:block"/> với AI Mentor
+                <h3 className="text-3xl sm:text-5xl font-extrabold mb-4 text-slate-800 dark:text-white tracking-tight">
+                  Welcome, <span className="bg-clip-text text-transparent bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${activeTheme.palette[0]}, ${activeTheme.palette[1]})` }}>Learners</span>
                 </h3>
-                <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed font-medium">
-                  Nhập dữ liệu bài tập và để AI xây dựng lộ trình cá nhân hóa, giúp bạn cân bằng giữa điểm số và sức khỏe.
+                <p className="text-lg text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+                  Quản lý thời gian hiệu quả, phân tích workload và để AI giúp bạn cân bằng cuộc sống học tập một cách khoa học.
                 </p>
-             </div>
-
-             {/* Steps Visualization */}
-             <div className="flex-1 max-w-2xl grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Connector Line */}
-                <div className="hidden md:block absolute top-[50%] -translate-y-1/2 left-[45%] right-[5%] h-0.5 -z-10 bg-slate-200 dark:bg-slate-700"></div>
-
-                {[
-                  { id: 'input', step: 1, label: 'Nhập Liệu', sub: 'Lịch & Deadline', paletteIdx: 0 },
-                  { id: 'analysis', step: 2, label: 'Phân Tích', sub: 'Đánh giá tải trọng', paletteIdx: 1 },
-                  { id: 'analysis', step: 3, label: 'AI Guidebook', sub: 'Lộ trình tối ưu', paletteIdx: 2 }
-                ].map((item, idx) => (
-                   <div 
-                      key={idx}
-                      onClick={() => setActiveTab(item.id as any)}
-                      className={`
-                        relative bg-white dark:bg-slate-800 p-5 rounded-[1.5rem] border transition-all duration-300 cursor-pointer hover:-translate-y-1 group/card
-                        ${(activeTab === 'input' && idx === 0) || (activeTab === 'analysis' && idx > 0) 
-                          ? 'border-slate-200 dark:border-slate-600 shadow-md ring-2 ring-offset-2 dark:ring-offset-slate-900' 
-                          : 'border-slate-100 dark:border-slate-700 shadow-sm opacity-70 hover:opacity-100 hover:shadow-md'}
-                      `}
-                      style={{ 
-                        '--tw-ring-color': activeTheme.palette[item.paletteIdx] 
-                      } as React.CSSProperties}
-                   >
-                     <div 
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-lg shadow-lg mb-3 transition-transform group-hover/card:scale-110"
-                        style={{ background: `linear-gradient(135deg, ${activeTheme.palette[item.paletteIdx]}, ${activeTheme.palette[item.paletteIdx + 1] || activeTheme.palette[0]})` }}
-                     >
-                       {item.step}
-                     </div>
-                     <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base">{item.label}</h4>
-                     <p className="text-xs text-slate-500 font-medium mt-1">{item.sub}</p>
-                  </div>
-                ))}
-             </div>
+            </div>
           </div>
-        </div>
+        </section>
 
         {activeTab === 'input' ? (
-          <div className="animate-fade-in space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-4 space-y-6">
+          <div className="animate-fade-in">
+            {/* GRID LAYOUT: 12 Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left Column: Input Form (4/12) - Sticky */}
+              <div className="lg:col-span-4 xl:col-span-3 sticky top-28 z-20 space-y-8">
                 <TaskInput onAddTask={handleAddTask} theme={activeTheme} />
-                
-                {/* Tips Card */}
-                <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[2rem] border border-white dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-none backdrop-blur-sm">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" style={{ color: activeTheme.palette[1] }} /> 
-                    Tips nhập liệu hiệu quả
-                  </h4>
-                  <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-4 list-none font-medium">
-                     <li className="flex items-start gap-3 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
-                        <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: activeTheme.palette[0] }}></span>
-                        <span className="flex-1">Ưu tiên nhập các môn <strong>sắp thi</strong> hoặc có <strong>bài tập lớn</strong>.</span>
-                     </li>
-                     <li className="flex items-start gap-3 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
-                        <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: activeTheme.palette[2] }}></span>
-                        <span className="flex-1">Đánh giá <strong>độ khó</strong> trung thực để cân bằng thời gian nghỉ.</span>
-                     </li>
-                  </ul>
-                </div>
               </div>
               
-              <div className="lg:col-span-8">
-                <DataTable tasks={tasks} onRemoveTask={handleRemoveTask} theme={activeTheme} />
+              {/* Right Column: Data Table (8/12) */}
+              <div className="lg:col-span-8 xl:col-span-9">
+                <DataTable 
+                  tasks={tasks} 
+                  onRemoveTask={handleRemoveTask} 
+                  onToggleCompletion={handleToggleTaskCompletion} 
+                  theme={activeTheme} 
+                />
               </div>
             </div>
           </div>
         ) : (
-          <div className="animate-fade-in space-y-10">
-             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200/60 dark:border-slate-700 pb-6">
-                <div>
-                   <h2 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Trung Tâm Phân Tích</h2>
-                   <p className="text-slate-500 dark:text-slate-400 mt-2 text-base font-medium">Tổng quan sức khỏe học tập & Hiệu suất cá nhân</p>
+          <div className="animate-fade-in max-w-[1600px] mx-auto space-y-8">
+             {/* Analysis Dashboard Header */}
+             <div className="flex items-center gap-4 pb-2">
+                <div className="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
+                  <Sparkles className="w-6 h-6" style={{ color: activeTheme.palette[0] }} />
                 </div>
-                <div className="text-xs font-bold bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-2 backdrop-blur-sm">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: activeTheme.palette[3] }}></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ backgroundColor: activeTheme.palette[2] }}></span>
-                  </span>
-                  Dữ liệu thời gian thực
+                <div>
+                   <h2 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Phân Tích & Chiến Lược</h2>
+                   <p className="text-slate-500 dark:text-slate-400 font-medium">Tổng hợp dữ liệu và đề xuất phương án tối ưu</p>
                 </div>
              </div>
 
-            <StatsBoard tasks={tasks} theme={activeTheme} isDarkMode={isDarkMode} />
+            {/* Row 1: Full Width Stats */}
+            <section className="w-full">
+              <StatsBoard tasks={tasks} theme={activeTheme} isDarkMode={isDarkMode} />
+            </section>
             
-            <AIPlanner tasks={tasks} theme={activeTheme} />
+            {/* Row 2: Split View - AI Guide (Left) & Action Plan (Right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+               {/* Main Strategy Guide - 2/3 width */}
+               <div className="lg:col-span-8">
+                  <AIPlanner tasks={tasks} theme={activeTheme} />
+               </div>
+
+               {/* Actionable Timeline - 1/3 width, Sticky Sidebar */}
+               <div className="lg:col-span-4 sticky top-24">
+                  <DailyActionPlan 
+                    tasks={tasks} 
+                    onToggleCompletion={handleToggleTaskCompletion} 
+                    onUpdateTask={handleUpdateTask}
+                    theme={activeTheme} 
+                  />
+               </div>
+            </div>
           </div>
         )}
 

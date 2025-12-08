@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StudyTask } from '../types';
-import { generateStudyPlan } from '../services/geminiService';
-import { Sparkles, Loader2, BookOpen, BrainCircuit, Quote } from 'lucide-react';
+import { generateStudyPlan, refineStudyPlan } from '../services/geminiService';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Activity, Target, Brain, Map, Quote, CheckCircle2 } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -10,157 +10,334 @@ interface AIPlannerProps {
 
 export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [loading, setLoading] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [guidebook, setGuidebook] = useState<string | null>(null);
+  const [userComment, setUserComment] = useState('');
+  const [step, setStep] = useState(0); // 0: Idle, 1: Cleaning, 2: Analyzing, 3: Writing, 4: Done
 
   const handleGenerate = async () => {
     if (tasks.length === 0) return;
+    
+    // Workflow Simulation
     setLoading(true);
-    setGuidebook(null); // Reset previous result
+    setGuidebook(null);
+    setUserComment('');
+    
+    setStep(1); // Cleaning
+    await new Promise(r => setTimeout(r, 800));
+    
+    setStep(2); // Analyzing
+    await new Promise(r => setTimeout(r, 1200));
+    
+    setStep(3); // Writing
     const result = await generateStudyPlan(tasks);
+    
+    setStep(4); // Done
     setGuidebook(result);
     setLoading(false);
   };
 
-  // Custom function to render specific markdown elements cleanly
+  const handleRefine = async () => {
+    if (!guidebook || !userComment.trim()) return;
+    setRefining(true);
+    const result = await refineStudyPlan(tasks, guidebook, userComment);
+    setGuidebook(result);
+    setRefining(false);
+    setUserComment('');
+  };
+
   const renderMarkdown = (text: string) => {
     if (!text) return null;
 
-    const lines = text.split('\n');
-    let inList = false;
+    // Split text into sections based on Headers (###)
+    // The filter(Boolean) removes empty strings from the split
+    const sections = text.split('###').filter(section => section.trim().length > 0);
 
-    return lines.map((line, index) => {
-      // 1. Headers (###)
-      if (line.startsWith('###')) {
-        return (
-          <h3 key={index} className="text-xl font-extrabold text-slate-800 dark:text-slate-100 mt-8 mb-4 flex items-center gap-2 tracking-tight">
-             <span className="w-1.5 h-6 rounded-full inline-block" style={{ backgroundColor: theme.palette[1] }}></span>
-             {line.replace(/^###\s+/, '')}
-          </h3>
-        );
-      }
+    return (
+      <div className="space-y-8">
+        {sections.map((section, index) => {
+          const lines = section.trim().split('\n');
+          const rawTitle = lines[0].trim(); // First line is the title
+          const contentLines = lines.slice(1); // Rest is content
 
-      // 2. Bold (**text**) - Simple parser
-      // This splits by ** and alternates normal/bold spans
-      const parseBold = (content: string) => {
-        const parts = content.split('**');
-        return parts.map((part, i) => 
-          i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white" style={{ color: theme.palette[0] }}>{part}</strong> : part
-        );
-      };
+          // Determine Icon & Style based on Title keywords
+          let HeaderIcon = Sparkles;
+          let isQuoteSection = false;
 
-      // 3. Lists (- item)
-      if (line.trim().startsWith('- ')) {
-        return (
-          <div key={index} className="flex items-start gap-3 mb-3 ml-1">
-             <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: theme.palette[2] }}></span>
-             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm md:text-base">
-               {parseBold(line.replace(/^- /, ''))}
-             </p>
-          </div>
-        );
-      }
+          if (rawTitle.includes('Tổng Quan') || rawTitle.includes('Sức Khỏe')) HeaderIcon = Activity;
+          else if (rawTitle.includes('Tiêu Điểm') || rawTitle.includes('Priority')) HeaderIcon = Target;
+          else if (rawTitle.includes('Chiến Lược') || rawTitle.includes('Tư Duy')) HeaderIcon = Brain;
+          else if (rawTitle.includes('Lộ Trình') || rawTitle.includes('Lịch Trình')) HeaderIcon = Map;
+          else if (rawTitle.includes('Thông Điệp') || rawTitle.includes('Mentor')) {
+             HeaderIcon = Quote;
+             isQuoteSection = true;
+          }
 
-      // 4. Empty lines
-      if (line.trim() === '') {
-        return <div key={index} className="h-2"></div>;
-      }
+          return (
+            <div 
+              key={index} 
+              className={`
+                relative rounded-[2rem] p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up
+                ${isQuoteSection 
+                  ? 'bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border-2' 
+                  : 'bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 shadow-sm'}
+              `}
+              style={{ 
+                animationDelay: `${index * 0.15}s`,
+                borderColor: isQuoteSection ? theme.palette[0] : undefined
+              }}
+            >
+              {/* Card Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div 
+                  className={`p-3 rounded-2xl shadow-sm ${isQuoteSection ? 'text-white' : 'bg-slate-50 dark:bg-slate-700'}`}
+                  style={{ backgroundColor: isQuoteSection ? theme.palette[0] : undefined }}
+                >
+                  <HeaderIcon 
+                    className="w-6 h-6" 
+                    style={{ color: isQuoteSection ? '#fff' : theme.palette[0] }} 
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                  {rawTitle.replace(/^[*_]+|[*_]+$/g, '')} {/* Remove bold markers from title if present */}
+                </h3>
+              </div>
 
-      // 5. Normal Text
-      return (
-        <p key={index} className="text-slate-600 dark:text-slate-300 leading-relaxed mb-2 text-sm md:text-base">
-          {parseBold(line)}
-        </p>
-      );
-    });
+              {/* Card Content */}
+              <div className="space-y-4">
+                {contentLines.map((line, lineIdx) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return null;
+
+                  // Parse Bold (**text**)
+                  const parseBold = (str: string) => str.split('**').map((part, i) => 
+                    i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700/50 px-1 rounded-md mx-0.5">{part}</strong> : part
+                  );
+
+                  // List Item
+                  if (trimmed.startsWith('- ')) {
+                    return (
+                      <div key={lineIdx} className="flex gap-3 items-start group">
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-150" style={{ backgroundColor: theme.palette[1] }}></span>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[1.05rem]">
+                          {parseBold(trimmed.substring(2))}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  // Blockquote (Inner Box)
+                  if (trimmed.startsWith('>')) {
+                    return (
+                      <div key={lineIdx} className="my-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border-l-4 italic" style={{ borderColor: theme.palette[2] }}>
+                        <p className="text-slate-700 dark:text-slate-300 font-medium text-lg leading-relaxed">
+                          "{trimmed.substring(1).trim()}"
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  // Regular Paragraph
+                  return (
+                    <p key={lineIdx} className="text-slate-600 dark:text-slate-300 leading-relaxed text-[1.05rem]">
+                      {parseBold(trimmed)}
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
+
+  // Skeleton Loader Component
+  const SkeletonLoader = () => (
+    <div className="max-w-3xl mx-auto space-y-8 animate-pulse p-8">
+      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 mb-10"></div>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="space-y-4">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
+            <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-1/3"></div>
+          </div>
+          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-full"></div>
+          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-5/6"></div>
+          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4/6"></div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Control Panel */}
-      <div className="lg:col-span-4 space-y-4">
-        <div className="bg-slate-800 dark:bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl shadow-indigo-900/20 relative overflow-hidden transition-colors duration-300">
-           {/* Abstract Background Decoration */}
-           <div className="absolute top-[-20%] right-[-20%] w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
-           <div className="absolute bottom-[-10%] left-[-10%] w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
-           
-           <h2 className="text-2xl font-bold mb-3 flex items-center gap-3 relative z-10">
-             <Sparkles className="w-6 h-6" style={{ color: theme.palette[2] }} />
-             AI Planner
-           </h2>
-           <p className="text-slate-300 text-sm mb-8 relative z-10 leading-relaxed opacity-90 font-medium">
-             Kích hoạt trí tuệ nhân tạo để phân tích lịch trình và đề xuất chiến lược học tập tối ưu cho riêng bạn.
-           </p>
+      
+      {/* Sidebar Control */}
+      <div className="lg:col-span-4 space-y-6">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-8 border border-white/20 dark:border-slate-800 shadow-xl relative overflow-hidden sticky top-28">
+           {/* Decorative bg blob */}
+           <div className="absolute -top-10 -right-10 w-32 h-32 opacity-20 rounded-full blur-2xl" style={{ background: theme.palette[0] }}></div>
 
-           <button
-            onClick={handleGenerate}
-            disabled={loading || tasks.length === 0}
-            className={`
-              w-full py-4 px-6 rounded-2xl font-bold text-sm shadow-lg transition-all transform hover:-translate-y-1 relative z-10 flex justify-center items-center gap-2
-              ${loading || tasks.length === 0 
-                ? 'bg-slate-700 cursor-not-allowed text-slate-400 shadow-none' 
-                : 'text-white shadow-lg active:scale-95'}
-            `}
-            style={!(loading || tasks.length === 0) ? { 
-                background: `linear-gradient(135deg, ${theme.palette[1]}, ${theme.palette[2]})`,
-                boxShadow: `0 10px 20px -5px ${theme.palette[1]}60` 
-            } : {}}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" /> 
-                Đang phân tích...
-              </>
-            ) : (
-              <>
-                <BrainCircuit className="w-5 h-5" /> 
-                Tạo Guidebook
-              </>
-            )}
-          </button>
-        </div>
-        
-        {tasks.length === 0 && (
-           <div className="text-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 text-slate-500 text-xs font-medium">
-              Vui lòng nhập ít nhất 1 nhiệm vụ để sử dụng AI.
+           <div className="relative z-10">
+              <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+                <Sparkles className="w-6 h-6" style={{ color: theme.palette[0] }} />
+                AI Mentor
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                Hệ thống sẽ phân tích workload, độ khó và deadline để tạo ra chiến lược học tập tối ưu nhất cho bạn.
+              </p>
+
+              {/* Workflow Steps Visualization */}
+              {loading && (
+                <div className="mb-6 space-y-4">
+                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 1 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
+                      {step > 1 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 1 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
+                      Làm sạch dữ liệu & Chuẩn hóa
+                   </div>
+                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 2 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
+                      {step > 2 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 2 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
+                      Phân tích Workload & Stress
+                   </div>
+                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 3 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
+                      {step > 3 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 3 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
+                      Soạn thảo Guidebook Chiến Lược
+                   </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleGenerate}
+                disabled={loading || tasks.length === 0}
+                className={`
+                  w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] relative overflow-hidden group
+                  ${loading || tasks.length === 0 
+                    ? 'opacity-50 cursor-not-allowed bg-slate-400' 
+                    : ''}
+                `}
+                style={!loading && tasks.length > 0 ? { backgroundImage: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})` } : {}}
+              >
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                {loading ? 'Đang Xử Lý...' : 'Tạo Kế Hoạch Ngay'}
+              </button>
            </div>
-        )}
+        </div>
       </div>
 
-      {/* Output Area */}
+      {/* Main Document Output */}
       <div className="lg:col-span-8">
-        {guidebook ? (
-          <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-lg shadow-slate-200/50 dark:shadow-black/20 border border-white dark:border-slate-700 overflow-hidden animate-fade-in-up transition-colors duration-300">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex items-center gap-4 bg-slate-50/50 dark:bg-slate-900/30 backdrop-blur-sm">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm text-white" style={{ backgroundColor: theme.palette[0] }}>
-                 <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 tracking-tight">Chiến Lược Học Tập</h3>
-                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Được thiết kế riêng cho bạn</p>
-              </div>
+        {loading ? (
+           <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 min-h-[600px]">
+              <SkeletonLoader />
+           </div>
+        ) : guidebook ? (
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col">
+            {/* Header */}
+            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center backdrop-blur-md">
+               <div className="flex items-center gap-5">
+                  <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600">
+                    <FileText className="w-8 h-8" style={{ color: theme.palette[0] }}/>
+                  </div>
+                  <div>
+                     <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Study Plan Guidebook</h1>
+                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Được thiết kế riêng cho bạn</p>
+                  </div>
+               </div>
+               <div className="text-right hidden sm:block">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ngày lập</span>
+                  <div className="font-bold text-slate-700 dark:text-slate-300 text-lg">{new Date().toLocaleDateString('vi-VN')}</div>
+               </div>
             </div>
             
-            <div className="p-8 md:p-10 relative">
-               {/* Decorative Quote Icon */}
-               <Quote className="absolute top-8 right-8 w-12 h-12 text-slate-100 dark:text-slate-700 -rotate-12 pointer-events-none" />
-               
-               <div className="max-w-none">
-                  {renderMarkdown(guidebook)}
-               </div>
+            {/* Content Body - Box in Box Layout */}
+            <div className="p-8 md:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20">
+               {refining ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: theme.palette[0] }} />
+                    <p className="font-medium">AI đang điều chỉnh kế hoạch theo ý bạn...</p>
+                  </div>
+               ) : (
+                  <div className="max-w-4xl mx-auto">
+                    {renderMarkdown(guidebook)}
+                  </div>
+               )}
+            </div>
 
-               <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400 font-medium">
-                  <span>SmartStudy AI generated content</span>
-                  <span>{new Date().toLocaleDateString('vi-VN')}</span>
+            {/* Feedback Loop Footer */}
+            <div className="bg-white dark:bg-slate-800/80 p-6 border-t border-slate-100 dark:border-slate-700">
+               <div className="max-w-3xl mx-auto flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+                    <MessageSquare className="w-4 h-4" />
+                    Phản hồi & Điều chỉnh
+                  </div>
+                  <div className="flex gap-3">
+                    <input 
+                      type="text" 
+                      value={userComment}
+                      onChange={(e) => setUserComment(e.target.value)}
+                      placeholder="Ví dụ: Mình muốn dành thêm thời gian cho môn Toán..."
+                      className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner"
+                      style={{ 
+                        // @ts-ignore
+                        '--tw-ring-color': theme.palette[0] 
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+                    />
+                    <button 
+                      onClick={handleRefine}
+                      disabled={!userComment.trim() || refining}
+                      className="px-6 rounded-xl text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      style={{ 
+                         background: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})`
+                      }}
+                    >
+                      <Send className="w-4 h-4" />
+                      <span className="hidden sm:inline">Gửi</span>
+                    </button>
+                  </div>
+               </div>
+               <div className="mt-4 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300 dark:text-slate-600 flex items-center justify-center gap-1">
+                    Powered by Gemini 2.0 Flash <Sparkles className="w-3 h-3"/>
+                  </p>
                </div>
             </div>
           </div>
         ) : (
-           <div className="h-full min-h-[350px] border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 p-8 bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-              <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-4">
-                  <Sparkles className="w-8 h-8 opacity-50" />
+           <div className="h-full border border-slate-200 dark:border-slate-800 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-default shadow-sm relative overflow-hidden group min-h-[500px]">
+              
+              {/* Animated Neural Network Background */}
+              <div className="w-80 h-80 mb-6 relative z-10">
+                 <svg className="w-full h-full" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Neural Nodes - Pulsing */}
+                    <circle cx="100" cy="100" r="10" fill={theme.palette[0]} className="animate-pulse opacity-80" />
+                    <circle cx="60" cy="60" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.2s' }} />
+                    <circle cx="140" cy="60" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.4s' }} />
+                    <circle cx="60" cy="140" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.6s' }} />
+                    <circle cx="140" cy="140" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.8s' }} />
+                    
+                    {/* Small Satellites */}
+                    <circle cx="30" cy="100" r="3" fill={theme.palette[2]} className="animate-float" />
+                    <circle cx="170" cy="100" r="3" fill={theme.palette[2]} className="animate-float-delayed" />
+                    
+                    {/* Connecting Lines (Simulated Synapses) */}
+                    <path d="M100 100 L60 60" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" />
+                    <path d="M100 100 L140 60" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.2s' }} />
+                    <path d="M100 100 L60 140" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    <path d="M100 100 L140 140" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.6s' }} />
+                    
+                    {/* Outer Rings - Brain Waves */}
+                    <circle cx="100" cy="100" r="50" stroke={theme.palette[0]} strokeWidth="0.5" strokeOpacity="0.2" className="animate-spin" style={{ animationDuration: '10s' }} />
+                    <circle cx="100" cy="100" r="70" stroke={theme.palette[0]} strokeWidth="0.5" strokeOpacity="0.1" className="animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
+                 </svg>
               </div>
-              <p className="font-bold text-sm">Chưa có dữ liệu phân tích</p>
-              <p className="text-xs mt-1 opacity-70">Kết quả sẽ hiển thị tại đây sau khi bạn nhấn nút tạo.</p>
+
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300 mb-2">Sẵn sàng phân tích</h3>
+                <p className="text-sm max-w-xs text-slate-400 leading-relaxed mx-auto">
+                  Nhấn nút <span className="font-bold text-slate-600 dark:text-slate-300">"Tạo Kế Hoạch Ngay"</span> để AI kích hoạt mạng lưới nơ-ron và xây dựng chiến lược cho bạn.
+                </p>
+              </div>
            </div>
         )}
       </div>
