@@ -35,6 +35,33 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     
+    <!-- Mermaid JS for AI MindMaps -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.mermaid) {
+          mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'base',
+            securityLevel: 'loose',
+            themeVariables: {
+              primaryColor: '#e0e7ff',
+              primaryTextColor: '#1e293b',
+              primaryBorderColor: '#818cf8',
+              lineColor: '#6366f1',
+              secondaryColor: '#f0fdf4',
+              tertiaryColor: '#fff1f2'
+            }
+          });
+        }
+      });
+    </script>
+
+    <!-- Simple Process Polyfill for Browser Compatibility -->
+    <script>
+      window.process = { env: {} };
+    </script>
+
     <!-- Structured Data (Schema.org) -->
     <script type="application/ld+json">
     {
@@ -136,6 +163,7 @@
         display: flex;
         justify-content: center;
         margin: 20px 0;
+        font-family: 'Be Vietnam Pro', sans-serif !important;
       }
       
       /* Animations */
@@ -170,7 +198,8 @@
     "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
     "vite": "https://aistudiocdn.com/vite@^7.2.7",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2",
+    "openai": "https://aistudiocdn.com/openai@^6.10.0"
   }
 }
 </script>

@@ -1,13 +1,31 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StudyTask } from '../types';
-import { generateStudyPlan, refineStudyPlan } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Activity, Target, Brain, Map, Quote, CheckCircle2, Download, Copy, Check } from 'lucide-react';
+import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
   theme: any;
 }
+
+// Internal Component for Rendering Mermaid Diagrams
+const MermaidChart = ({ code }: { code: string }) => {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (elementRef.current && code) {
+      // @ts-ignore
+      if (window.mermaid) {
+        elementRef.current.innerHTML = code;
+        elementRef.current.removeAttribute('data-processed');
+        // @ts-ignore
+        window.mermaid.run({ nodes: [elementRef.current] });
+      }
+    }
+  }, [code]);
+
+  return <div ref={elementRef} className="mermaid w-full flex justify-center py-4 overflow-x-auto" />;
+};
 
 export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [loading, setLoading] = useState(false);
@@ -21,37 +39,42 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     }
     return null;
   });
+
+  const [mindMapCode, setMindMapCode] = useState<string | null>(() => {
+     if (typeof window !== 'undefined') {
+      return localStorage.getItem('smartstudy-mindmap');
+    }
+    return null;
+  });
   
   const [userComment, setUserComment] = useState('');
-  const [step, setStep] = useState(0); // 0: Idle, 1: Cleaning, 2: Analyzing, 3: Writing, 4: Done
+  const [isGeneratingMap, setIsGeneratingMap] = useState(false);
 
   // Save guidebook to localStorage whenever it changes
   useEffect(() => {
-    if (guidebook) {
-      localStorage.setItem('smartstudy-guidebook', guidebook);
-    }
-  }, [guidebook]);
+    if (guidebook) localStorage.setItem('smartstudy-guidebook', guidebook);
+    if (mindMapCode) localStorage.setItem('smartstudy-mindmap', mindMapCode);
+  }, [guidebook, mindMapCode]);
 
   const handleGenerate = async () => {
     if (tasks.length === 0) return;
     
-    // Workflow Simulation
     setLoading(true);
     setGuidebook(null);
+    setMindMapCode(null);
     setUserComment('');
     
-    setStep(1); // Cleaning
-    await new Promise(r => setTimeout(r, 800));
-    
-    setStep(2); // Analyzing
-    await new Promise(r => setTimeout(r, 1200));
-    
-    setStep(3); // Writing
     const result = await generateStudyPlan(tasks);
     
-    setStep(4); // Done
     setGuidebook(result);
     setLoading(false);
+  };
+
+  const handleGenerateMindMap = async () => {
+     setIsGeneratingMap(true);
+     const code = await generateMindMap(tasks);
+     setMindMapCode(code);
+     setIsGeneratingMap(false);
   };
 
   const handleRefine = async () => {
@@ -83,11 +106,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const renderMarkdown = (text: string) => {
     if (!text) return null;
 
     // Split text into sections based on Headers (###)
-    // The filter(Boolean) removes empty strings from the split
     const sections = text.split('###').filter(section => section.trim().length > 0);
 
     return (
@@ -99,41 +125,31 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
 
           // Determine Icon & Style based on Title keywords
           let HeaderIcon = Sparkles;
-          let isQuoteSection = false;
+          
+          const titleLower = rawTitle.toLowerCase();
 
-          if (rawTitle.includes('Tổng Quan') || rawTitle.includes('Sức Khỏe')) HeaderIcon = Activity;
-          else if (rawTitle.includes('Tiêu Điểm') || rawTitle.includes('Priority')) HeaderIcon = Target;
-          else if (rawTitle.includes('Chiến Lược') || rawTitle.includes('Tư Duy')) HeaderIcon = Brain;
-          else if (rawTitle.includes('Lộ Trình') || rawTitle.includes('Lịch Trình')) HeaderIcon = Map;
-          else if (rawTitle.includes('Thông Điệp') || rawTitle.includes('Mentor')) {
-             HeaderIcon = Quote;
-             isQuoteSection = true;
-          }
-
+          if (titleLower.includes('tổng quan') || titleLower.includes('sức khỏe')) HeaderIcon = Heart;
+          else if (titleLower.includes('chiến lược')) HeaderIcon = Brain;
+          else if (titleLower.includes('tiêu điểm') || titleLower.includes('ưu tiên')) HeaderIcon = Flame;
+          else if (titleLower.includes('lộ trình') || titleLower.includes('lịch') || titleLower.includes('ngày')) HeaderIcon = Calendar;
+          else if (titleLower.includes('thông điệp') || titleLower.includes('mentor')) HeaderIcon = Quote;
+          else if (titleLower.includes('công cụ')) HeaderIcon = Cpu;
+          
           return (
             <div 
               key={index} 
-              className={`
-                relative rounded-[2rem] p-6 sm:p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up
-                ${isQuoteSection 
-                  ? 'bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border-2' 
-                  : 'bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 shadow-sm'}
-              `}
+              className="relative rounded-[2rem] p-6 sm:p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up break-inside-avoid bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 shadow-sm"
               style={{ 
-                animationDelay: `${index * 0.15}s`,
-                borderColor: isQuoteSection ? theme.palette[0] : undefined
+                animationDelay: `${index * 0.15}s`
               }}
             >
               {/* Card Header */}
               <div className="flex items-center gap-4 mb-6">
                 <div 
-                  className={`p-3 rounded-2xl shadow-sm ${isQuoteSection ? 'text-white' : 'bg-slate-50 dark:bg-slate-700'}`}
-                  style={{ backgroundColor: isQuoteSection ? theme.palette[0] : undefined }}
+                  className="p-3 rounded-2xl shadow-sm bg-slate-50 dark:bg-slate-700"
+                  style={{ backgroundColor: theme.palette[0], color: '#fff' }}
                 >
-                  <HeaderIcon 
-                    className="w-6 h-6" 
-                    style={{ color: isQuoteSection ? '#fff' : theme.palette[0] }} 
-                  />
+                  <HeaderIcon className="w-6 h-6" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
                   {rawTitle.replace(/^[*_]+|[*_]+$/g, '')} {/* Remove bold markers from title if present */}
@@ -146,10 +162,38 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                   const trimmed = line.trim();
                   if (!trimmed) return null;
 
-                  // Parse Bold (**text**) - REMOVED BACKGROUND COLOR
+                  // Parse Markdown Table
+                  if (trimmed.startsWith('|')) {
+                     // Simple table rendering logic
+                     const cells = trimmed.split('|').filter(c => c.trim() !== '');
+                     if (cells.length === 0 || trimmed.includes('---')) return null; // Skip separator lines
+                     
+                     const isHeader = lineIdx < 4 && contentLines[lineIdx+1]?.includes('---');
+                     
+                     return (
+                        <div key={lineIdx} className="grid gap-2 border-b border-slate-100 dark:border-slate-700 py-2" style={{ gridTemplateColumns: `repeat(${cells.length}, 1fr)`}}>
+                           {cells.map((cell, cIdx) => (
+                              <div key={cIdx} className={`text-sm ${isHeader ? 'font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider' : 'text-slate-600 dark:text-slate-300'}`}>
+                                 {cell.trim()}
+                              </div>
+                           ))}
+                        </div>
+                     )
+                  }
+
+                  // Parse Bold (**text**)
                   const parseBold = (str: string) => str.split('**').map((part, i) => 
                     i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white">{part}</strong> : part
                   );
+
+                  // Blockquote (>)
+                  if (trimmed.startsWith('>')) {
+                    return (
+                      <div key={lineIdx} className="pl-6 border-l-4 border-indigo-200 dark:border-indigo-800 italic text-slate-600 dark:text-slate-400 py-2">
+                        {parseBold(trimmed.substring(1))}
+                      </div>
+                    );
+                  }
 
                   // List Item
                   if (trimmed.startsWith('- ')) {
@@ -158,17 +202,6 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                         <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-150" style={{ backgroundColor: theme.palette[1] }}></span>
                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-[1.05rem]">
                           {parseBold(trimmed.substring(2))}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  // Blockquote (Inner Box)
-                  if (trimmed.startsWith('>')) {
-                    return (
-                      <div key={lineIdx} className="my-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border-l-4 italic" style={{ borderColor: theme.palette[2] }}>
-                        <p className="text-slate-700 dark:text-slate-300 font-medium text-lg leading-relaxed">
-                          "{trimmed.substring(1).trim()}"
                         </p>
                       </div>
                     );
@@ -211,37 +244,24 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
       
       {/* Sidebar Control */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className="lg:col-span-4 space-y-6 print:hidden">
         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 border border-white/20 dark:border-slate-800 shadow-xl relative overflow-hidden lg:sticky lg:top-28">
            {/* Decorative bg blob */}
            <div className="absolute -top-10 -right-10 w-32 h-32 opacity-20 rounded-full blur-2xl" style={{ background: theme.palette[0] }}></div>
 
            <div className="relative z-10">
               <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-6 h-6" style={{ color: theme.palette[0] }} />
-                AI Mentor
+                <Brain className="w-8 h-8" style={{ color: theme.palette[0] }} />
+                AI Guidebook
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                Hệ thống sẽ phân tích workload, độ khó và deadline để tạo ra chiến lược học tập tối ưu nhất cho bạn.
-              </p>
-
-              {/* Workflow Steps Visualization */}
-              {loading && (
-                <div className="mb-6 space-y-4">
-                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 1 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
-                      {step > 1 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 1 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
-                      Làm sạch dữ liệu & Chuẩn hóa
-                   </div>
-                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 2 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
-                      {step > 2 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 2 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
-                      Phân tích Workload & Stress
-                   </div>
-                   <div className={`flex items-center gap-3 text-sm p-3 rounded-xl transition-colors ${step >= 3 ? 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white font-bold' : 'text-slate-400'}`}>
-                      {step > 3 ? <CheckCircle2 className="w-5 h-5 text-green-500"/> : (step === 3 ? <Loader2 className="w-5 h-5 animate-spin text-blue-500"/> : <div className="w-5 h-5 border-2 border-slate-200 rounded-full"/>)}
-                      Soạn thảo Guidebook Chiến Lược
-                   </div>
-                </div>
-              )}
+              <div className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm space-y-2">
+                <p>Hệ thống sẽ tổng hợp dữ liệu để tạo ra:</p>
+                <ul className="space-y-2 font-medium text-slate-700 dark:text-slate-300">
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-full text-indigo-600"><Heart className="w-3.5 h-3.5"/></div> Tổng quan & Sức khỏe</li>
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-full text-amber-600"><Brain className="w-3.5 h-3.5"/></div> Chiến lược học tập</li>
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-emerald-100 dark:bg-emerald-900 rounded-full text-emerald-600"><Flame className="w-3.5 h-3.5"/></div> Tiêu điểm ưu tiên</li>
+                </ul>
+              </div>
 
               <button
                 onClick={handleGenerate}
@@ -255,58 +275,76 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                 style={!loading && tasks.length > 0 ? { backgroundImage: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})` } : {}}
               >
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                {loading ? 'Đang Xử Lý...' : 'Tạo Kế Hoạch Ngay'}
+                {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Đang phân tích...</span>
+                    </div>
+                ) : 'Tạo Guidebook'}
               </button>
            </div>
         </div>
       </div>
 
       {/* Main Document Output */}
-      <div className="lg:col-span-8">
+      <div className="lg:col-span-8 print:col-span-12 print:w-full">
         {loading ? (
            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 min-h-[600px]">
               <SkeletonLoader />
            </div>
         ) : guidebook ? (
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col print:shadow-none print:border-none">
             {/* Header */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-6 sm:p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center backdrop-blur-md">
-               <div className="flex items-center gap-5">
-                  <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600">
+            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-6 sm:p-8 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-md print:bg-transparent print:border-b-2 print:border-slate-200">
+               <div className="flex items-center gap-5 w-full sm:w-auto">
+                  <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600 print:hidden">
                     <FileText className="w-8 h-8" style={{ color: theme.palette[0] }}/>
                   </div>
                   <div>
-                     <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Study Plan Guidebook</h1>
-                     <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">Được thiết kế riêng cho bạn</p>
+                     <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Student Guidebook</h1>
+                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+                        Kế hoạch học tập cá nhân hóa
+                     </p>
                   </div>
                </div>
                
                {/* Actions */}
-               <div className="flex items-center gap-2">
-                  <button 
-                    onClick={handleCopy}
-                    className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
-                    title="Sao chép nội dung"
-                  >
-                    {copied ? <Check className="w-5 h-5 text-emerald-500"/> : <Copy className="w-5 h-5"/>}
-                  </button>
-                  <button 
-                    onClick={handleDownload}
-                    className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
-                    title="Tải xuống (Markdown)"
-                  >
-                    <Download className="w-5 h-5"/>
-                  </button>
-                  
-                  <div className="text-right hidden sm:block ml-4 pl-4 border-l border-slate-200 dark:border-slate-700">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ngày lập</span>
-                      <div className="font-bold text-slate-700 dark:text-slate-300 text-lg">{new Date().toLocaleDateString('vi-VN')}</div>
-                  </div>
+               <div className="flex items-center gap-2 self-end sm:self-auto print:hidden">
+                    <button 
+                      onClick={handleGenerateMindMap}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold text-sm transition-all active:scale-95 border border-indigo-200 dark:border-indigo-800"
+                      disabled={isGeneratingMap}
+                    >
+                      {isGeneratingMap ? <Loader2 className="w-4 h-4 animate-spin"/> : <Network className="w-4 h-4"/>}
+                      <span className="hidden sm:inline">Visual Map</span>
+                    </button>
+
+                    <button 
+                      onClick={handleCopy}
+                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                      title="Sao chép nội dung"
+                    >
+                      {copied ? <Check className="w-5 h-5 text-emerald-500"/> : <Copy className="w-5 h-5"/>}
+                    </button>
+                    <button 
+                      onClick={handleDownload}
+                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                      title="Tải xuống (Markdown)"
+                    >
+                      <Download className="w-5 h-5"/>
+                    </button>
+                    <button 
+                      onClick={handlePrint}
+                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                      title="In / Lưu PDF"
+                    >
+                      <Printer className="w-5 h-5"/>
+                    </button>
                </div>
             </div>
             
-            {/* Content Body - Box in Box Layout */}
-            <div className="p-6 sm:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20">
+            {/* Content Body */}
+            <div className="p-6 sm:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20 print:bg-white">
                {refining ? (
                   <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                     <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: theme.palette[0] }} />
@@ -314,24 +352,40 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                   </div>
                ) : (
                   <div className="max-w-4xl mx-auto">
+                    {/* Visual AI MindMap Section (Inserted if generated) */}
+                    {mindMapCode && (
+                       <div className="mb-10 p-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] shadow-lg animate-fade-in-up">
+                          <div className="bg-white dark:bg-slate-900 rounded-[1.9rem] p-6 sm:p-8">
+                              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                                 <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
+                                   <Network className="w-5 h-5"/>
+                                 </div>
+                                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">SmartStudy Visual Map</h3>
+                                 <span className="ml-auto text-xs font-bold uppercase text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md">Mermaid.js</span>
+                              </div>
+                              <MermaidChart code={mindMapCode} />
+                          </div>
+                       </div>
+                    )}
+
                     {renderMarkdown(guidebook)}
                   </div>
                )}
             </div>
 
             {/* Feedback Loop Footer */}
-            <div className="bg-white dark:bg-slate-800/80 p-6 border-t border-slate-100 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800/80 p-6 border-t border-slate-100 dark:border-slate-700 print:hidden">
                <div className="max-w-3xl mx-auto flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
                     <MessageSquare className="w-4 h-4" />
-                    Phản hồi & Điều chỉnh
+                    Phản hồi & Điều chỉnh (Feedback Loop)
                   </div>
                   <div className="flex gap-3 flex-col sm:flex-row">
                     <input 
                       type="text" 
                       value={userComment}
                       onChange={(e) => setUserComment(e.target.value)}
-                      placeholder="Ví dụ: Mình muốn dành thêm thời gian cho môn Toán..."
+                      placeholder="Ví dụ: Tôi muốn học môn Toán vào buổi sáng..."
                       className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner w-full"
                       style={{ 
                         // @ts-ignore
@@ -352,46 +406,23 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     </button>
                   </div>
                </div>
-               <div className="mt-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300 dark:text-slate-600 flex items-center justify-center gap-1">
-                    Powered by Gemini 2.0 Flash <Sparkles className="w-3 h-3"/>
-                  </p>
-               </div>
             </div>
           </div>
         ) : (
            <div className="h-full border border-slate-200 dark:border-slate-800 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-default shadow-sm relative overflow-hidden group min-h-[500px]">
               
-              {/* Animated Neural Network Background */}
-              <div className="w-80 h-80 mb-6 relative z-10">
+              <div className="w-64 h-64 mb-6 relative z-10 opacity-50">
                  <svg className="w-full h-full" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    {/* Neural Nodes - Pulsing */}
-                    <circle cx="100" cy="100" r="10" fill={theme.palette[0]} className="animate-pulse opacity-80" />
-                    <circle cx="60" cy="60" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.2s' }} />
-                    <circle cx="140" cy="60" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.4s' }} />
-                    <circle cx="60" cy="140" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.6s' }} />
-                    <circle cx="140" cy="140" r="6" fill={theme.palette[1]} className="animate-bounce-slow opacity-60" style={{ animationDelay: '0.8s' }} />
-                    
-                    {/* Small Satellites */}
-                    <circle cx="30" cy="100" r="3" fill={theme.palette[2]} className="animate-float" />
-                    <circle cx="170" cy="100" r="3" fill={theme.palette[2]} className="animate-float-delayed" />
-                    
-                    {/* Connecting Lines (Simulated Synapses) */}
-                    <path d="M100 100 L60 60" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" />
-                    <path d="M100 100 L140 60" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.2s' }} />
-                    <path d="M100 100 L60 140" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.4s' }} />
-                    <path d="M100 100 L140 140" stroke={theme.palette[1]} strokeWidth="1.5" strokeOpacity="0.4" className="animate-pulse" style={{ animationDelay: '0.6s' }} />
-                    
-                    {/* Outer Rings - Brain Waves */}
-                    <circle cx="100" cy="100" r="50" stroke={theme.palette[0]} strokeWidth="0.5" strokeOpacity="0.2" className="animate-spin" style={{ animationDuration: '10s' }} />
-                    <circle cx="100" cy="100" r="70" stroke={theme.palette[0]} strokeWidth="0.5" strokeOpacity="0.1" className="animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
+                    <circle cx="100" cy="100" r="40" stroke={theme.palette[0]} strokeWidth="2" className="animate-pulse" />
+                    <path d="M100 60V140 M60 100H140" stroke={theme.palette[1]} strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="100" cy="100" r="70" stroke={theme.palette[2]} strokeWidth="1" strokeDasharray="5 5" className="animate-spin" style={{ animationDuration: '20s'}} />
                  </svg>
               </div>
 
               <div className="relative z-10">
-                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300 mb-2">Sẵn sàng phân tích</h3>
+                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300 mb-2">SmartStudy Guidebook</h3>
                 <p className="text-sm max-w-xs text-slate-400 leading-relaxed mx-auto">
-                  Nhấn nút <span className="font-bold text-slate-600 dark:text-slate-300">"Tạo Kế Hoạch Ngay"</span> để AI kích hoạt mạng lưới nơ-ron và xây dựng chiến lược cho bạn.
+                  Nhấn <span className="font-bold text-slate-600 dark:text-slate-300">"Tạo Guidebook"</span> để hệ thống phân tích dữ liệu và tạo kế hoạch học tập chi tiết.
                 </p>
               </div>
            </div>

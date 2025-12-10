@@ -142,7 +142,7 @@ function App() {
     >
       
       {/* --- Accessible Modern Background Layer --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none">
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none print:hidden">
         <div className="absolute inset-0 bg-dot-pattern opacity-40"></div>
 
         {/* Very subtle floating blobs - Reduced opacity for ADHD friendliness */}
@@ -171,7 +171,7 @@ function App() {
       </div>
 
       {/* --- Header --- */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all duration-300">
+      <header className="sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all duration-300 print:hidden">
         <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-default group select-none">
             <div 
@@ -260,7 +260,7 @@ function App() {
       <main className="flex-grow w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         
         {/* Banner Section */}
-        <section className="mb-12">
+        <section className="mb-12 print:hidden">
           <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 shadow-sm group mx-auto backdrop-blur-sm">
             <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-10 transition-opacity duration-700">
               <Layers className="w-80 h-80" style={{ color: activeTheme.palette[0] }} />
@@ -306,7 +306,7 @@ function App() {
         ) : (
           <div className="animate-fade-in max-w-[1600px] mx-auto space-y-8">
              {/* Analysis Dashboard Header */}
-             <div className="flex items-center gap-4 pb-2">
+             <div className="flex items-center gap-4 pb-2 print:hidden">
                 <div className="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
                   <Sparkles className="w-6 h-6" style={{ color: activeTheme.palette[0] }} />
                 </div>
@@ -317,19 +317,19 @@ function App() {
              </div>
 
             {/* Row 1: Full Width Stats */}
-            <section className="w-full">
+            <section className="w-full print:hidden">
               <StatsBoard tasks={tasks} theme={activeTheme} isDarkMode={isDarkMode} />
             </section>
             
             {/* Row 2: Split View - AI Guide (Left) & Action Plan (Right) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                {/* Main Strategy Guide - 2/3 width on LG */}
-               <div className="lg:col-span-8 order-2 lg:order-1">
+               <div className="lg:col-span-8 order-2 lg:order-1 print:col-span-12 print:w-full">
                   <AIPlanner tasks={tasks} theme={activeTheme} />
                </div>
 
                {/* Actionable Timeline - 1/3 width, Sticky Sidebar on LG */}
-               <div className="lg:col-span-4 order-1 lg:order-2 lg:sticky lg:top-24">
+               <div className="lg:col-span-4 order-1 lg:order-2 lg:sticky lg:top-24 print:hidden">
                   <DailyActionPlan 
                     tasks={tasks} 
                     onToggleCompletion={handleToggleTaskCompletion} 
