@@ -24,7 +24,7 @@ const MermaidChart = ({ code }: { code: string }) => {
     }
   }, [code]);
 
-  return <div ref={elementRef} className="mermaid w-full flex justify-center py-4 overflow-x-auto" />;
+  return <div ref={elementRef} className="mermaid w-full flex justify-center py-4 overflow-x-auto min-h-[200px]" />;
 };
 
 export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
@@ -354,16 +354,21 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                   <div className="max-w-4xl mx-auto">
                     {/* Visual AI MindMap Section (Inserted if generated) */}
                     {mindMapCode && (
-                       <div className="mb-10 p-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] shadow-lg animate-fade-in-up">
-                          <div className="bg-white dark:bg-slate-900 rounded-[1.9rem] p-6 sm:p-8">
-                              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                                 <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
+                       <div className="mb-10 p-1 bg-gradient-to-br from-violet-500 via-indigo-500 to-fuchsia-500 rounded-[2rem] shadow-xl animate-fade-in-up">
+                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-[1.9rem] p-6 sm:p-8 relative overflow-hidden">
+                              {/* Decorative Grid Background for Map */}
+                              <div className="absolute inset-0 bg-dot-pattern opacity-30 pointer-events-none"></div>
+                              
+                              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 relative z-10">
+                                 <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl text-white shadow-md">
                                    <Network className="w-5 h-5"/>
                                  </div>
-                                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">SmartStudy Visual Map</h3>
-                                 <span className="ml-auto text-xs font-bold uppercase text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md">Mermaid.js</span>
+                                 <h3 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight">SmartStudy Visual Map</h3>
+                                 <span className="ml-auto text-xs font-bold uppercase text-white bg-slate-800 px-3 py-1.5 rounded-full shadow-sm">Live Render</span>
                               </div>
-                              <MermaidChart code={mindMapCode} />
+                              <div className="relative z-10">
+                                 <MermaidChart code={mindMapCode} />
+                              </div>
                           </div>
                        </div>
                     )}
