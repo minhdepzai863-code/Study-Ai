@@ -1,58 +1,8 @@
 // services/aiService.ts
 import { GoogleGenAI } from "@google/genai";
-import OpenAI from "openai";
 import { StudyTask, DifficultyLevel, PriorityLevel } from "../types";
 
 const googleAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-// Safely initialize OpenAI to prevent crash on load if key is missing
-let openai: OpenAI | null = null;
-if (process.env.OPENAI_API_KEY) {
-  try {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, dangerouslyAllowBrowser: true });
-  } catch (e) {
-    console.warn("OpenAI Client could not be initialized:", e);
-  }
-}
-
-type Provider = "google" | "openai";
-type ModelCall = (args: { model: string; prompt: string; useThinkingZero?: boolean }) => Promise<string | undefined>;
-
-// Centralized runners for each provider
-const runGoogle: ModelCall = async ({ model, prompt, useThinkingZero }) => {
-  try {
-    const response = await googleAI.models.generateContent({
-      model,
-      contents: prompt,
-      ...(useThinkingZero ? { config: { thinkingConfig: { thinkingBudget: 0 } } } : {}),
-    });
-    return response.text;
-  } catch (error) {
-    console.error("Google AI Error:", error);
-    return undefined;
-  }
-};
-
-const runOpenAI: ModelCall = async ({ model, prompt }) => {
-  if (!openai) return undefined;
-  
-  try {
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [{ role: "user", content: prompt }],
-    });
-    return response.choices[0]?.message?.content || undefined;
-  } catch (error) {
-    console.error("OpenAI Error:", error);
-    return undefined;
-  }
-};
-
-// Simple registry for extensibility
-const registry: Record<Provider, ModelCall> = {
-  google: runGoogle,
-  openai: runOpenAI,
-};
 
 // Helper to sanitize data before sending to AI
 const sanitizeData = (tasks: StudyTask[]): StudyTask[] => {
@@ -65,31 +15,31 @@ const sanitizeData = (tasks: StudyTask[]): StudyTask[] => {
   }));
 };
 
-// Optional: mapping for per-task specialization (you can tweak without touching the main prompts)
+// Configuration for models
 const taskModelMapping = {
-  // analysis-heavy default
-  analysis: { provider: "google" as Provider, model: "gemini-2.5-flash", thinkingZero: true },
-  // refinement defaults to OpenAI (example)
-  refine: { provider: "openai" as Provider, model: "gpt-4o-mini" },
+  // Main analysis uses Flash 2.5 with 0 thinking budget for speed/efficiency on structured data
+  analysis: { model: "gemini-2.5-flash", thinkingZero: true },
+  // Refinement also uses Flash
+  refine: { model: "gemini-2.5-flash" },
 };
 
-// Unified caller with fallback
+// Unified caller
 async function callModel(opts: {
-  provider: Provider;
   model: string;
   prompt: string;
   thinkingZero?: boolean;
 }): Promise<string> {
-  let fn = registry[opts.provider];
-  
-  // Basic fallback if OpenAI is requested but not initialized
-  if (opts.provider === 'openai' && !openai) {
-     fn = registry['google'];
-     opts.model = 'gemini-2.5-flash'; 
+  try {
+    const response = await googleAI.models.generateContent({
+      model: opts.model,
+      contents: opts.prompt,
+      ...(opts.thinkingZero ? { config: { thinkingConfig: { thinkingBudget: 0 } } } : {}),
+    });
+    return response.text?.trim() || "";
+  } catch (error) {
+    console.error("Google AI Error:", error);
+    return "";
   }
-
-  const out = await fn({ model: opts.model, prompt: opts.prompt, useThinkingZero: opts.thinkingZero });
-  return out?.trim() || "";
 }
 
 // —————————————————————————————————————————————
@@ -140,9 +90,7 @@ export const generateStudyPlan = async (tasks: StudyTask[]): Promise<string> => 
       LƯU Ý: Chỉ trả về nội dung Markdown thuần túy. Không dùng code block.
     `;
 
-    // Route to Gemini for primary generation
     const result = await callModel({
-      provider: taskModelMapping.analysis.provider,
       model: taskModelMapping.analysis.model,
       prompt,
       thinkingZero: taskModelMapping.analysis.thinkingZero,
@@ -181,14 +129,12 @@ export const refineStudyPlan = async (
       Hãy cập nhật nội dung dựa trên phản hồi của bạn học sinh một cách thân thiện.
     `;
 
-    // First pass: Gemini
-    const firstPass = await callModel({
-      provider: taskModelMapping.analysis.provider,
-      model: taskModelMapping.analysis.model,
+    const result = await callModel({
+      model: taskModelMapping.refine.model,
       prompt,
     });
 
-    return firstPass || "Hệ thống đang bận cập nhật.";
+    return result || "Hệ thống đang bận cập nhật.";
   } catch (error) {
     console.error("Gemini Refine Error:", error);
     return "Lỗi kết nối khi cập nhật kế hoạch.";
@@ -228,7 +174,6 @@ export const generateMindMap = async (tasks: StudyTask[]): Promise<string> => {
     `;
 
     const result = await callModel({
-      provider: taskModelMapping.analysis.provider,
       model: taskModelMapping.analysis.model,
       prompt,
       thinkingZero: true
@@ -260,7 +205,6 @@ export const generateMarkdownTable = async (tasks: StudyTask[]): Promise<string>
     `;
 
     const out = await callModel({
-      provider: taskModelMapping.analysis.provider,
       model: taskModelMapping.analysis.model,
       prompt,
     });
