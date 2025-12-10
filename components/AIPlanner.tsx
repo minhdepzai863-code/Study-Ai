@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudyTask } from '../types';
 import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote } from 'lucide-react';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -11,18 +11,40 @@ interface AIPlannerProps {
 // Internal Component for Rendering Mermaid Diagrams
 const MermaidChart = ({ code }: { code: string }) => {
   const elementRef = useRef<HTMLDivElement>(null);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (elementRef.current && code) {
+      setHasError(false); // Reset error state on new code
+      elementRef.current.removeAttribute('data-processed');
+      elementRef.current.innerHTML = code;
+      
       // @ts-ignore
       if (window.mermaid) {
-        elementRef.current.innerHTML = code;
-        elementRef.current.removeAttribute('data-processed');
-        // @ts-ignore
-        window.mermaid.run({ nodes: [elementRef.current] });
+        try {
+          // @ts-ignore
+          window.mermaid.run({ nodes: [elementRef.current] })
+            .catch((err: any) => {
+              console.error("Mermaid Async Render Error:", err);
+              setHasError(true);
+            });
+        } catch (err) {
+          console.error("Mermaid Sync Render Error:", err);
+          setHasError(true);
+        }
       }
     }
   }, [code]);
+
+  if (hasError) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-8 text-center bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-800/30">
+        <AlertTriangle className="w-8 h-8 text-rose-500 mb-2" />
+        <p className="text-sm font-bold text-rose-600 dark:text-rose-400">Không thể hiển thị biểu đồ</p>
+        <p className="text-xs text-rose-400 dark:text-rose-500/70 mt-1">AI đã tạo mã không hợp lệ. Vui lòng thử lại.</p>
+      </div>
+    );
+  }
 
   return <div ref={elementRef} className="mermaid w-full flex justify-center py-4 overflow-x-auto min-h-[200px]" />;
 };
@@ -72,8 +94,11 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
 
   const handleGenerateMindMap = async () => {
      setIsGeneratingMap(true);
+     setMindMapCode(null); // Reset previous map
      const code = await generateMindMap(tasks);
-     setMindMapCode(code);
+     if (code) {
+       setMindMapCode(code);
+     }
      setIsGeneratingMap(false);
   };
 

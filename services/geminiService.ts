@@ -147,30 +147,23 @@ export const generateMindMap = async (tasks: StudyTask[]): Promise<string> => {
     const tasksJson = JSON.stringify(cleanTasks.map(t => ({ s: t.subject, d: t.difficulty })), null, 2);
 
     const prompt = `
-      Bạn là chuyên gia Visual Thinking.
+      Bạn là chuyên gia Visual Thinking & Mermaid.js.
       DỮ LIỆU: ${tasksJson}
-      YÊU CẦU: Tạo code Mermaid.js dạng "graph LR" (Trái sang Phải) để vẽ Mindmap kế hoạch học tập THẬT RỰC RỠ VÀ BẮT MẮT.
+      YÊU CẦU: Tạo code Mermaid.js dạng "graph LR" (Trái sang Phải) để vẽ Mindmap kế hoạch học tập.
       
-      NGUYÊN TẮC VISUAL:
-      1. SỬ DỤNG EMOJI: Mỗi node phải có emoji (VD: 📐 Toán, 💻 Web, 🚀 Plan).
-      2. PHỐI MÀU RỰC RỠ: Sử dụng lệnh "style" để tô màu từng node.
-         - Node Gốc (Study Plan): Fill #4338ca (Indigo), Chữ trắng, Stroke dày.
-         - Node Môn học (Level 1): Mỗi môn một màu pastel đậm khác nhau (VD: #ef4444, #f59e0b, #10b981, #0ea5e9). Chữ trắng hoặc đen đậm.
-         - Node Chi tiết (Level 2): Fill màu nhạt (White/Gray), Stroke màu của nhánh cha.
-      3. LIÊN KẾT MỀM MẠI: Thêm dòng này vào cuối: "linkStyle default interpolation basis stroke-width:2px,fill:none,stroke:#94a3b8;"
-
-      OUTPUT FORMAT:
-      Trả về code Mermaid thuần, KHÔNG dùng markdown block.
-      Ví dụ cấu trúc:
+      NGUYÊN TẮC VISUAL & SYNTAX:
+      1. QUAN TRỌNG: Luôn dùng dấu ngoặc kép cho label node để tránh lỗi ký tự đặc biệt. 
+         Ví dụ đúng: A["📐 Toán"] --> B["📝 Bài tập"]
+         Ví dụ sai: A[📐 Toán] --> B[📝 Bài tập]
+      2. EMOJI: Bắt buộc dùng Emoji trong label.
+      3. MÀU SẮC: Dùng lệnh "style" để tô màu rực rỡ.
+      
+      OUTPUT:
+      Hãy trả về một block code markdown:
+      \`\`\`mermaid
       graph LR
-        Root[🚀 Study Plan]
-        A[📐 Toán]
-        B[💻 Web]
-        Root --> A
-        Root --> B
-        style Root fill:#4338ca,stroke:#fff,color:#fff,stroke-width:4px
-        style A fill:#ef4444,stroke:#fff,color:#fff
-        style B fill:#3b82f6,stroke:#fff,color:#fff
+        ... code here ...
+      \`\`\`
     `;
 
     const result = await callModel({
@@ -180,7 +173,18 @@ export const generateMindMap = async (tasks: StudyTask[]): Promise<string> => {
     });
 
     let code = result || "";
-    code = code.replace(/```mermaid/g, "").replace(/```/g, "").trim();
+    
+    // Robust Regex Extraction to ignore conversational filler
+    const mermaidRegex = /```mermaid([\s\S]*?)```/;
+    const match = code.match(mermaidRegex);
+    
+    if (match && match[1]) {
+      code = match[1].trim();
+    } else {
+      // Fallback cleanup if regex fails
+      code = code.replace(/```mermaid/g, "").replace(/```/g, "").trim();
+    }
+    
     return code;
   } catch (error) {
     console.error("MindMap Error:", error);
