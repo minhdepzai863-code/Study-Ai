@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PenTool, GraduationCap, Sparkles, Palette, Moon, Sun, Layers, 
   BookOpen, Calculator, Atom, Globe, Lightbulb, Ruler, Image, 
-  Music, Leaf, Shapes, Camera, Feather, Cloud, Flower2, Wind
+  Music, Leaf, Shapes, Camera, Feather, Cloud, Flower2, Wind,
+  ChevronRight
 } from 'lucide-react';
 import { TaskInput } from './components/TaskInput';
 import { DataTable } from './components/DataTable';
@@ -200,7 +201,7 @@ function App() {
                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 scale-95 hover:scale-100'
                  }`}
                >
-                 <PenTool className="w-4 h-4"/>
+                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] border ${activeTab === 'input' ? 'border-current' : 'border-slate-300'}`}>1</span>
                  <span className="hidden xs:inline">Nhập Liệu</span>
                </button>
                <button
@@ -211,7 +212,7 @@ function App() {
                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 scale-95 hover:scale-100'
                  }`}
                >
-                 <Sparkles className="w-4 h-4"/>
+                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] border ${activeTab === 'analysis' ? 'border-current' : 'border-slate-300'}`}>2</span>
                  <span className="hidden xs:inline">Phân Tích</span>
                </button>
              </nav>
@@ -284,7 +285,7 @@ function App() {
         </section>
 
         {activeTab === 'input' ? (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in flex flex-col gap-8">
             {/* GRID LAYOUT: Stacks on mobile, 12 Cols on LG */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left Column: Input Form (4/12) - Sticky only on large screens */}
@@ -302,6 +303,20 @@ function App() {
                 />
               </div>
             </div>
+
+            {/* Navigation Hint Footer */}
+            {tasks.length > 0 && (
+              <div className="flex justify-end mt-8 pb-8">
+                <button 
+                  onClick={() => setActiveTab('analysis')}
+                  className="px-8 py-4 rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex items-center gap-3 animate-bounce-slow"
+                  style={{ backgroundImage: `linear-gradient(to right, ${activeTheme.palette[0]}, ${activeTheme.palette[1]})` }}
+                >
+                  <span>Bước tiếp theo: Phân tích AI</span>
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="animate-fade-in max-w-[1600px] mx-auto space-y-8">

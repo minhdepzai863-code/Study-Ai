@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { StudyTask, MindMapOptions, StudentProfile } from '../types';
+import { StudyTask, MindMapOptions, StudentProfile, SavedPlan } from '../types';
 import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users } from 'lucide-react';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users, History, Save, Trash2, ChevronRight, Clock, ArrowRight, UserCheck, ShieldAlert, Target } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -75,6 +77,16 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     return null;
   });
 
+  // History / Storage State
+  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('smartstudy-history');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
+
   const [mapOptions, setMapOptions] = useState<MindMapOptions>({
     showDifficulty: true,
     showHours: false,
@@ -90,6 +102,21 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     if (guidebook) localStorage.setItem('smartstudy-guidebook', guidebook);
     if (mindMapCode) localStorage.setItem('smartstudy-mindmap', mindMapCode);
   }, [guidebook, mindMapCode]);
+
+  // Save history
+  useEffect(() => {
+    localStorage.setItem('smartstudy-history', JSON.stringify(savedPlans));
+  }, [savedPlans]);
+
+  // Prevent body scroll when history is open
+  useEffect(() => {
+    if (showHistory) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [showHistory]);
 
   const handleGenerate = async () => {
     if (tasks.length === 0) return;
@@ -124,6 +151,33 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     setGuidebook(result);
     setRefining(false);
     setUserComment('');
+  };
+
+  const handleSavePlan = () => {
+    if (!guidebook) return;
+    const newPlan: SavedPlan = {
+      id: uuidv4(),
+      timestamp: Date.now(),
+      guidebook,
+      mindMapCode,
+      tasks: tasks, // Snapshot of tasks at that moment
+      profile: studentProfile,
+      title: `Plan ${new Date().toLocaleDateString('vi-VN')} (${studentProfile.energyLevel}/10 Energy)`
+    };
+    setSavedPlans(prev => [newPlan, ...prev]);
+  };
+
+  const handleLoadPlan = (plan: SavedPlan) => {
+    setGuidebook(plan.guidebook);
+    setMindMapCode(plan.mindMapCode);
+    setStudentProfile(plan.profile);
+    // Note: We are not overwriting current tasks to allow user to compare
+    setShowHistory(false);
+  };
+
+  const handleDeletePlan = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedPlans(prev => prev.filter(p => p.id !== id));
   };
 
   const handleDownload = () => {
@@ -178,16 +232,161 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
           let HeaderIcon = Sparkles;
           
           const titleLower = rawTitle.toLowerCase();
+          const isScheduleSection = titleLower.includes('lộ trình') || titleLower.includes('lịch') || titleLower.includes('ngày');
+          const isProfileSection = titleLower.includes('hồ sơ') || titleLower.includes('phân loại') || titleLower.includes('archetype');
 
-          if (titleLower.includes('phân tích') || titleLower.includes('dữ liệu')) HeaderIcon = TrendingUp;
+          if (titleLower.includes('phân tích') || titleLower.includes('chiến lược')) HeaderIcon = TrendingUp;
           else if (titleLower.includes('sức khỏe') || titleLower.includes('rủi ro')) HeaderIcon = Heart;
-          else if (titleLower.includes('chiến lược')) HeaderIcon = Brain;
           else if (titleLower.includes('tiêu điểm') || titleLower.includes('ưu tiên')) HeaderIcon = Flame;
-          else if (titleLower.includes('lộ trình') || titleLower.includes('lịch') || titleLower.includes('ngày')) HeaderIcon = Calendar;
+          else if (isScheduleSection) HeaderIcon = Calendar;
           else if (titleLower.includes('thông điệp') || titleLower.includes('mentor')) HeaderIcon = Quote;
-          else if (titleLower.includes('đồng kiến tạo') || titleLower.includes('cộng đồng')) HeaderIcon = Users;
-          else if (titleLower.includes('bias') || titleLower.includes('thiên kiến')) HeaderIcon = ScaleIcon;
+          else if (titleLower.includes('đồng kiến tạo') || titleLower.includes('lời khuyên')) HeaderIcon = Lightbulb;
           
+          // --- SPECIAL RENDERER: PROFILE / CLASSIFICATION CARD ---
+          if (isProfileSection) {
+            // Helper to parse key-value pairs like "- Archetype: Name"
+            const profileData: any = {};
+            contentLines.forEach(line => {
+              const parts = line.split(':');
+              if (parts.length > 1) {
+                const key = parts[0].replace(/[-*]/g, '').trim().toLowerCase();
+                const value = parts.slice(1).join(':').trim();
+                profileData[key] = value;
+              }
+            });
+
+            // Fallback content parsing if structured data isn't perfect
+            const archetype = profileData['archetype'] || profileData['loại'] || "Học sinh";
+            
+            return (
+              <div key={index} className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-slate-900 to-indigo-900 text-white shadow-xl animate-fade-in-up">
+                 {/* Decorative background */}
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                 
+                 <div className="relative z-10 p-8 flex flex-col md:flex-row gap-8 items-start">
+                    {/* Left: Avatar/Icon */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-4">
+                       <div className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-4xl shadow-inner">
+                          <UserCheck className="w-10 h-10 text-indigo-300" />
+                       </div>
+                       <span className="px-4 py-1.5 rounded-full bg-indigo-500/30 border border-indigo-400/30 text-xs font-bold uppercase tracking-wider">
+                         Đã phân loại
+                       </span>
+                    </div>
+
+                    {/* Right: Info */}
+                    <div className="flex-grow space-y-4">
+                       <div>
+                          <h3 className="text-3xl font-extrabold tracking-tight text-white mb-1">
+                             {archetype.replace(/\*\*/g, '')}
+                          </h3>
+                          <p className="text-indigo-200 font-medium">Hồ sơ học tập & Phong cách cá nhân</p>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          {contentLines.map((line, lIdx) => {
+                             const trimmed = line.trim();
+                             if (!trimmed || trimmed.startsWith('Archetype')) return null;
+                             
+                             let icon = <Check className="w-4 h-4 text-emerald-400"/>;
+                             if (trimmed.toLowerCase().includes('bẫy') || trimmed.toLowerCase().includes('yếu')) icon = <ShieldAlert className="w-4 h-4 text-rose-400"/>;
+                             if (trimmed.toLowerCase().includes('mạnh') || trimmed.toLowerCase().includes('tốt')) icon = <Target className="w-4 h-4 text-emerald-400"/>;
+
+                             return (
+                                <div key={lIdx} className="bg-white/5 rounded-xl p-3 border border-white/10 text-sm leading-relaxed text-slate-200">
+                                   <div className="flex gap-2">
+                                      <div className="mt-0.5 flex-shrink-0">{icon}</div>
+                                      <div>{trimmed.replace(/^[-*]\s*/, '').replace(/\*\*/g, '')}</div>
+                                   </div>
+                                </div>
+                             )
+                          })}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+            );
+          }
+
+          // --- SPECIAL RENDERER: VISUAL SCHEDULE ---
+          if (isScheduleSection) {
+            // Parse schedule items
+            const dayItems: { day: string, content: string[] }[] = [];
+            let currentDay: any = null;
+
+            contentLines.forEach(line => {
+              const cleanLine = line.trim();
+              // Check for "Day X" or "Ngày X" header markers
+              const dayMatch = cleanLine.match(/[-*]*\s*\**((Ngày|Day)\s*\d+.*?)[:\*\*]/i);
+              
+              if (dayMatch) {
+                if (currentDay) dayItems.push(currentDay);
+                currentDay = { day: dayMatch[1].replace(/\*\*/g, ''), content: [] };
+                // If there's content on the same line after the colon
+                const splitContent = cleanLine.split(/[:]/);
+                if (splitContent.length > 1 && splitContent[1].trim()) {
+                   currentDay.content.push(splitContent[1].trim());
+                }
+              } else if (cleanLine.length > 0 && currentDay) {
+                 // Regular item under a day
+                 currentDay.content.push(cleanLine.replace(/^[-*]\s*/, '').replace(/\*\*/g, ''));
+              }
+            });
+            if (currentDay) dayItems.push(currentDay);
+
+            return (
+              <div 
+                key={index}
+                className="relative rounded-[2rem] p-8 animate-fade-in-up break-inside-avoid bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900 shadow-lg overflow-hidden"
+              >
+                  {/* Visual Background Elements */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl"></div>
+
+                  {/* Header */}
+                  <div className="relative z-10 flex items-center gap-4 mb-8">
+                    <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                      <HeaderIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
+                        {rawTitle.replace(/^[*_]+|[*_]+$/g, '')}
+                      </h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm">Lịch trình tối ưu hóa cho Archetype của bạn</p>
+                    </div>
+                  </div>
+
+                  {/* Horizontal Timeline Cards */}
+                  <div className="relative z-10 flex flex-col gap-6">
+                     {dayItems.length > 0 ? dayItems.map((day, dIdx) => (
+                        <div 
+                          key={dIdx} 
+                          className="flex flex-col sm:flex-row gap-4 sm:gap-6 border-l-2 border-indigo-200 dark:border-indigo-800 pl-6 relative"
+                        >
+                           <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-4 border-indigo-500"></div>
+                           
+                           <div className="w-full sm:w-32 flex-shrink-0">
+                              <span className="font-bold text-lg text-indigo-600 dark:text-indigo-400 block">{day.day}</span>
+                           </div>
+                           
+                           <div className="flex-grow space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
+                              {day.content.map((item, iIdx) => (
+                                 <div key={iIdx} className="flex gap-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed items-start">
+                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></div>
+                                    <span>{item}</span>
+                                 </div>
+                              ))}
+                           </div>
+                        </div>
+                     )) : (
+                        <div className="text-slate-400 italic">Không tìm thấy dữ liệu lịch trình chi tiết.</div>
+                     )}
+                  </div>
+              </div>
+            );
+          }
+
+          // STANDARD RENDERER FOR OTHER SECTIONS
           return (
             <div 
               key={index} 
@@ -298,98 +497,177 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   );
 
   return (
-    <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
       
-      {/* Sidebar Control */}
+      {/* 
+        ------------------------------------------------
+        HISTORY SIDEBAR (Refined Animation) 
+        ------------------------------------------------
+      */}
+      <div className={`fixed inset-0 z-50 flex justify-end transition-all duration-300 ${showHistory ? 'visible' : 'invisible'}`}>
+        {/* Backdrop */}
+        <div 
+          onClick={() => setShowHistory(false)} 
+          className={`absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity duration-300 ${showHistory ? 'opacity-100' : 'opacity-0'}`}
+        ></div>
+        
+        {/* Drawer */}
+        <div 
+          className={`
+            relative z-10 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl h-full flex flex-col transform transition-transform duration-300 ease-out
+            ${showHistory ? 'translate-x-0' : 'translate-x-full'}
+          `}
+        >
+           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-md">
+             <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white">Lịch sử Plan</h3>
+             </div>
+             <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
+          </div>
+          
+          <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-50/30 dark:bg-slate-900/30">
+             {savedPlans.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 text-center p-6">
+                   <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                      <Clock className="w-8 h-8 opacity-30" />
+                   </div>
+                   <p className="font-medium text-slate-600 dark:text-slate-300">Chưa có bản lưu nào</p>
+                   <p className="text-xs mt-1">Lưu plan sau khi tạo để xem lại tại đây.</p>
+                </div>
+             ) : (
+                savedPlans.map(plan => (
+                   <div key={plan.id} onClick={() => handleLoadPlan(plan)} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white dark:bg-slate-800 cursor-pointer group transition-all hover:shadow-md relative">
+                      <div className="flex justify-between items-start mb-2">
+                         <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">{new Date(plan.timestamp).toLocaleDateString('vi-VN')}</span>
+                         <button onClick={(e) => handleDeletePlan(plan.id, e)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5"/></button>
+                      </div>
+                      <h4 className="font-bold text-slate-700 dark:text-slate-200 mb-2">{plan.title || 'Kế hoạch học tập'}</h4>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 dark:bg-slate-700/50 p-2 rounded-lg">
+                         <Battery className="w-3 h-3" /> Năng lượng: {plan.profile.energyLevel}/10
+                         <span className="mx-1 text-slate-300">|</span>
+                         <Cpu className="w-3 h-3" /> {plan.tasks.length} tasks
+                      </div>
+                   </div>
+                ))
+             )}
+          </div>
+        </div>
+      </div>
+
+      {/* 
+        ------------------------------------------------
+        LEFT COLUMN: Daily Check-in Card (Redesigned)
+        ------------------------------------------------
+      */}
       <div className="lg:col-span-4 space-y-6 print:hidden">
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 border border-white/20 dark:border-slate-800 shadow-xl relative overflow-hidden lg:sticky lg:top-28">
-           {/* Decorative bg blob */}
-           <div className="absolute -top-10 -right-10 w-32 h-32 opacity-20 rounded-full blur-2xl" style={{ background: theme.palette[0] }}></div>
-
-           <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-                <Brain className="w-8 h-8" style={{ color: theme.palette[0] }} />
-                AI Guidebook
-              </h2>
-
-              {/* User Profile Inputs */}
-              <div className="space-y-5 mb-8">
-                 
-                 {/* Energy Slider */}
-                 <div>
-                    <div className="flex justify-between items-center mb-2">
-                       <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                         <Battery className="w-4 h-4"/> Năng lượng hôm nay
-                       </label>
-                       <span className={`text-xs font-bold ${getEnergyLabel(studentProfile.energyLevel).color}`}>
-                         {studentProfile.energyLevel}/10 ({getEnergyLabel(studentProfile.energyLevel).text})
-                       </span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="10" 
-                      step="1"
-                      value={studentProfile.energyLevel}
-                      onChange={(e) => setStudentProfile(prev => ({ ...prev, energyLevel: parseInt(e.target.value) }))}
-                      className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700"
-                      style={{ accentColor: theme.palette[0] }}
-                    />
-                 </div>
-
-                 {/* Academic Performance Select */}
-                 <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-2">
-                         <BarChart3 className="w-4 h-4"/> Học lực hiện tại
-                    </label>
-                    <select
-                       value={studentProfile.performance}
-                       onChange={(e) => setStudentProfile(prev => ({ ...prev, performance: e.target.value as any }))}
-                       className="w-full bg-slate-50 dark:bg-slate-800 border-transparent rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
-                    >
-                       <option value="Yếu">Yếu (Cần hỗ trợ nhiều)</option>
-                       <option value="Trung bình">Trung bình (Cần cố gắng)</option>
-                       <option value="Khá">Khá (Duy trì phong độ)</option>
-                       <option value="Giỏi">Giỏi (Cần thử thách)</option>
-                    </select>
-                 </div>
-
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden lg:sticky lg:top-28">
+           
+           {/* Decorative Header */}
+           <div className="relative z-10 mb-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-start">
+                <div>
+                   <h2 className="text-xl font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+                     <Brain className="w-6 h-6 text-indigo-500" />
+                     Daily Check-in
+                   </h2>
+                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Cập nhật trạng thái để AI tối ưu hóa.</p>
+                </div>
+                <button 
+                  onClick={() => setShowHistory(true)}
+                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+                  title="Xem lịch sử"
+                >
+                   <History className="w-5 h-5" />
+                </button>
               </div>
+           </div>
+
+           <div className="relative z-10 space-y-6">
               
-              <div className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <p>Hệ thống sẽ tổng hợp dữ liệu để tạo ra:</p>
-                <ul className="space-y-2 font-medium text-slate-700 dark:text-slate-300">
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-full text-blue-600"><TrendingUp className="w-3.5 h-3.5"/></div> Phân tích dữ liệu</li>
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-full text-indigo-600"><Heart className="w-3.5 h-3.5"/></div> Kiểm soát Rủi ro & Bias</li>
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-full text-amber-600"><Brain className="w-3.5 h-3.5"/></div> Chiến lược học tập</li>
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-emerald-100 dark:bg-emerald-900 rounded-full text-emerald-600"><Users className="w-3.5 h-3.5"/></div> Đồng kiến tạo (Community)</li>
-                </ul>
+              {/* Energy Slider Card */}
+              <div className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                 <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                      <Battery className="w-4 h-4"/> Năng lượng
+                    </label>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md bg-white dark:bg-slate-700 shadow-sm ${getEnergyLabel(studentProfile.energyLevel).color}`}>
+                      {studentProfile.energyLevel}/10 • {getEnergyLabel(studentProfile.energyLevel).text}
+                    </span>
+                 </div>
+                 <input 
+                   type="range" 
+                   min="1" 
+                   max="10" 
+                   step="1"
+                   value={studentProfile.energyLevel}
+                   onChange={(e) => setStudentProfile(prev => ({ ...prev, energyLevel: parseInt(e.target.value) }))}
+                   className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700"
+                   style={{ accentColor: theme.palette[0] }}
+                 />
+                 <div className="flex justify-between mt-2 text-[10px] text-slate-400 font-bold uppercase">
+                    <span>Mệt mỏi</span>
+                    <span>Đỉnh cao</span>
+                 </div>
               </div>
 
+              {/* Performance Select Card */}
+              <div className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-3">
+                      <BarChart3 className="w-4 h-4"/> Tự đánh giá học lực
+                 </label>
+                 <select
+                    value={studentProfile.performance}
+                    onChange={(e) => setStudentProfile(prev => ({ ...prev, performance: e.target.value as any }))}
+                    className="w-full bg-white dark:bg-slate-700 border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer shadow-sm hover:shadow"
+                 >
+                    <option value="Yếu">Yếu (Cần hỗ trợ nhiều)</option>
+                    <option value="Trung bình">Trung bình (Cần cố gắng)</option>
+                    <option value="Khá">Khá (Duy trì phong độ)</option>
+                    <option value="Giỏi">Giỏi (Cần thử thách)</option>
+                 </select>
+              </div>
+
+              {/* Action Button */}
               <button
                 onClick={handleGenerate}
                 disabled={loading || tasks.length === 0}
                 className={`
-                  w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] relative overflow-hidden group
+                  w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/50 hover:-translate-y-1 transition-all active:scale-[0.98] relative overflow-hidden group flex items-center justify-center gap-3
                   ${loading || tasks.length === 0 
                     ? 'opacity-50 cursor-not-allowed bg-slate-400' 
                     : ''}
                 `}
                 style={!loading && tasks.length > 0 ? { backgroundImage: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})` } : {}}
               >
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
                 {loading ? (
-                    <div className="flex items-center justify-center gap-2">
+                    <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         <span>Đang phân tích...</span>
-                    </div>
-                ) : 'Tạo Guidebook'}
+                    </>
+                ) : (
+                    <>
+                        <Sparkles className="w-5 h-5 fill-white/20" />
+                        <span>Tạo Guidebook</span>
+                    </>
+                )}
               </button>
+              
+              <div className="text-center">
+                 <p className="text-xs text-slate-400 font-medium">
+                    AI sẽ phân tích {tasks.length} tasks dựa trên dữ liệu bạn cung cấp.
+                 </p>
+              </div>
+
            </div>
         </div>
       </div>
 
-      {/* Main Document Output */}
+      {/* 
+        ------------------------------------------------
+        RIGHT COLUMN: Document Output
+        ------------------------------------------------
+      */}
       <div className="lg:col-span-8 print:col-span-12 print:w-full">
         {loading ? (
            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 min-h-[600px]">
@@ -468,6 +746,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     >
                       {isGeneratingMap ? <Loader2 className="w-4 h-4 animate-spin"/> : <Network className="w-4 h-4"/>}
                       <span className="hidden sm:inline">Visual Map</span>
+                    </button>
+
+                    <button 
+                      onClick={handleSavePlan}
+                      className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all border border-emerald-200 dark:border-emerald-800 active:scale-95"
+                      title="Lưu kế hoạch"
+                    >
+                      <Save className="w-5 h-5"/>
                     </button>
 
                     <button 
@@ -565,22 +851,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             </div>
           </div>
         ) : (
-           <div className="h-full border border-slate-200 dark:border-slate-800 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-default shadow-sm relative overflow-hidden group min-h-[500px]">
-              
-              <div className="w-64 h-64 mb-6 relative z-10 opacity-50">
-                 <svg className="w-full h-full" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="100" cy="100" r="40" stroke={theme.palette[0]} strokeWidth="2" className="animate-pulse" />
-                    <path d="M100 60V140 M60 100H140" stroke={theme.palette[1]} strokeWidth="2" strokeLinecap="round" />
-                    <circle cx="100" cy="100" r="70" stroke={theme.palette[2]} strokeWidth="1" strokeDasharray="5 5" className="animate-spin" style={{ animationDuration: '20s'}} />
-                 </svg>
+           <div className="h-full border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-slate-900/20 min-h-[500px]">
+              <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-4">
+                 <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
               </div>
-
-              <div className="relative z-10">
-                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300 mb-2">SmartStudy Guidebook</h3>
-                <p className="text-sm max-w-xs text-slate-400 leading-relaxed mx-auto">
-                  Nhấn <span className="font-bold text-slate-600 dark:text-slate-300">"Tạo Guidebook"</span> để hệ thống phân tích dữ liệu và tạo kế hoạch học tập chi tiết.
-                </p>
-              </div>
+              <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">Sẵn sàng tạo kế hoạch</h3>
+              <p className="text-slate-400 max-w-xs leading-relaxed">
+                 Hãy cập nhật "Daily Check-in" ở cột bên trái, sau đó nhấn nút <strong>Tạo Guidebook</strong> để bắt đầu.
+              </p>
            </div>
         )}
       </div>

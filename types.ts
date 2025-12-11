@@ -74,3 +74,13 @@ export interface FocusSession {
   duration: number;
   completedAt: Date;
 }
+
+export interface SavedPlan {
+  id: string;
+  timestamp: number;
+  guidebook: string;
+  mindMapCode: string | null;
+  tasks: StudyTask[];
+  profile: StudentProfile;
+  title?: string;
+}

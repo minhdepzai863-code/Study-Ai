@@ -1,3 +1,4 @@
+
 // services/aiService.ts
 import { GoogleGenAI } from "@google/genai";
 import { StudyTask, DifficultyLevel, PriorityLevel, MindMapOptions, StudentProfile } from "../types";
@@ -42,8 +43,73 @@ async function callModel(opts: {
   }
 }
 
+// --- STUDENT CLASSIFICATION LOGIC ---
+const determineStudentArchetype = (
+  tasks: StudyTask[], 
+  profile: StudentProfile, 
+  workloadScore: number
+): { name: string; description: string; scheduleStyle: string; icon: string } => {
+  const { energyLevel, performance } = profile;
+  const urgentTasks = tasks.filter(t => t.priority === PriorityLevel.HIGH).length;
+  
+  // 1. THE BURNT-OUT WARRIOR (Chiến Binh Kiệt Sức)
+  // Low Energy + High Workload
+  if (energyLevel <= 4 && workloadScore >= 7) {
+    return {
+      name: "Chiến Binh Kiệt Sức (The Burnt-out Warrior)",
+      description: "Bạn có năng lực nhưng đang gánh quá nhiều việc trong khi năng lượng chạm đáy. Nguy cơ Burnout rất cao.",
+      scheduleStyle: "Recovery Mode: Các phiên làm việc cực ngắn (25m), nghỉ dài (15m). Cắt bỏ mọi task không khẩn cấp.",
+      icon: "❤️‍🩹"
+    };
+  }
+
+  // 2. THE DEADLINE FIGHTER (Chiến Thần Deadline)
+  // High Urgency + High Energy + Medium/Low Performance (Usually waits till last minute)
+  if (urgentTasks >= 3 && energyLevel >= 6) {
+    return {
+      name: "Chiến Thần Deadline (The Deadline Fighter)",
+      description: "Bạn sống nhờ Adrenaline. Bạn có năng lượng nhưng khối lượng task gấp đang dồn lại quá nhiều.",
+      scheduleStyle: "Sprint Mode: Time-boxing cực kỳ nghiêm ngặt. Loại bỏ hoàn toàn xao nhãng. 'Eat the Frog' ngay lập tức.",
+      icon: "🔥"
+    };
+  }
+
+  // 3. THE PERFECTIONIST (Người Cầu Toàn)
+  // High Performance + High Hours on Medium Tasks
+  if (performance === 'Giỏi' || performance === 'Khá') {
+    const avgHours = tasks.reduce((sum, t) => sum + t.estimatedHours, 0) / (tasks.length || 1);
+    if (avgHours > 3) {
+      return {
+        name: "Người Cầu Toàn (The Perfectionist)",
+        description: "Bạn học giỏi nhưng có xu hướng dành quá nhiều thời gian cho một việc, dẫn đến thiếu thời gian cho việc khác.",
+        scheduleStyle: "Optimization Mode: Đặt 'Hard Stop' cho từng task. Áp dụng quy tắc 80/20.",
+        icon: "💎"
+      };
+    }
+  }
+
+  // 4. THE EXPLORER (Nhà Thám Hiểm)
+  // High Energy + Low Workload
+  if (energyLevel >= 8 && workloadScore <= 5) {
+    return {
+      name: "Nhà Thám Hiểm (The Explorer)",
+      description: "Bạn đang ở trạng thái sung sức và rảnh rang. Đây là lúc để học sâu hoặc học vượt.",
+      scheduleStyle: "Deep Dive Mode: Các phiên Deep Work dài (90m). Tập trung vào nghiên cứu mở rộng.",
+      icon: "🚀"
+    };
+  }
+
+  // 5. THE BALANCER (Người Cân Bằng) - Default
+  return {
+    name: "Người Cân Bằng (The Balancer)",
+    description: "Bạn đang duy trì nhịp độ ổn định. Không quá áp lực nhưng cũng không quá rảnh rỗi.",
+    scheduleStyle: "Consistency Mode: Pomodoro tiêu chuẩn (25/5). Duy trì đều đặn.",
+    icon: "⚖️"
+  };
+};
+
 // —————————————————————————————————————————————
-// DO NOT CHANGE: Main Gemini prompts remain intact
+// Main Gemini prompts
 // —————————————————————————————————————————————
 
 export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentProfile): Promise<string> => {
@@ -56,113 +122,60 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
     const highPriorityCount = cleanTasks.filter(t => t.priority === PriorityLevel.HIGH).length;
     const hardCount = cleanTasks.filter(t => t.difficulty === DifficultyLevel.HARD || t.difficulty === DifficultyLevel.VERY_HARD).length;
     
-    // Heuristic for Workload Intensity (0-10 scale approximation)
-    // 1 hour = 0.5 points, Hard task = 2 points, Very Hard = 3 points
+    // Heuristic for Workload Intensity (0-10 scale)
     let workloadScore = (totalHours * 0.5) + (hardCount * 2);
-    workloadScore = Math.min(10, Math.max(1, workloadScore)); // Cap between 1-10
+    workloadScore = Math.min(10, Math.max(1, workloadScore)); 
 
     const userEnergy = profile?.energyLevel || 7;
     const userPerformance = profile?.performance || 'Khá';
 
-    // 2. Determine Dynamic Strategy Mode
-    let strategyMode = "";
-    let toneDirective = "";
-    let wellbeingDirective = "";
-    let prioritizationLogic = "";
+    // 2. Classify Student
+    const archetype = determineStudentArchetype(cleanTasks, { energyLevel: userEnergy, performance: userPerformance }, workloadScore);
 
-    const energyGap = userEnergy - workloadScore;
-
-    if (userEnergy <= 3) {
-      // Low Energy Cases
-      if (workloadScore > 6) {
-         strategyMode = "CRISIS MANAGEMENT (Quản trị khủng hoảng)";
-         toneDirective = "Đồng cảm, trấn an, nhưng cực kỳ dứt khoát cắt giảm workload. Nghiêm khắc với việc nghỉ ngơi.";
-         prioritizationLogic = "CHỈ chọn 1 nhiệm vụ quan trọng nhất (Dead or Alive). Gạt bỏ mọi thứ khác sang ngày mai.";
-         wellbeingDirective = "BẮT BUỘC: Power Nap 20p, uống nước, và chỉ dùng Pomodoro ngắn (15p làm - 5p nghỉ). Cảnh báo Burnout đỏ.";
-      } else {
-         strategyMode = "RECOVERY & MAINTENANCE (Phục hồi & Duy trì)";
-         toneDirective = "Nhẹ nhàng, chữa lành (Healing), khích lệ.";
-         prioritizationLogic = "Ưu tiên các việc nhẹ nhàng, Quick Wins để tạo cảm giác hoàn thành mà không tốn sức.";
-         wellbeingDirective = "Khuyến khích đi ngủ sớm, nghe nhạc lo-fi, tránh xa màn hình sau khi xong việc.";
-      }
-    } else if (userEnergy >= 8) {
-      // High Energy Cases
-      if (workloadScore > 7) {
-         strategyMode = "BEAST MODE / PEAK PERFORMANCE (Hiệu suất đỉnh cao)";
-         toneDirective = "Mạnh mẽ, huấn luyện viên thể thao (Coach), thúc đẩy giới hạn.";
-         prioritizationLogic = "Tấn công trực diện vào task Khó nhất (Eat the Frog). Xếp lịch Deep Work 90 phút liên tục.";
-         wellbeingDirective = "Thử thách giới hạn nhưng nhắc uống nước. Dùng Dopamine detox để giữ sự tập trung cao độ.";
-      } else {
-         strategyMode = "GROWTH & OPTIMIZATION (Tăng trưởng & Tối ưu)";
-         toneDirective = "Thông thái, gợi mở, khuyến khích học sâu hơn (Deep Dive).";
-         prioritizationLogic = "Hoàn thành bài tập nhanh gọn để dành thời gian nghiên cứu thêm hoặc đọc sách.";
-         wellbeingDirective = "Duy trì năng lượng bằng vận động nhẹ. Thử áp dụng phương pháp Feynman để học.";
-      }
-    } else {
-      // Average Energy Cases
-      strategyMode = "BALANCED MARATHON (Chạy bền cân bằng)";
-      toneDirective = "Thân thiện, logic, thực tế.";
-      prioritizationLogic = "Xen kẽ: 1 Task Khó + 1 Task Dễ để duy trì động lực (Momentum).";
-      wellbeingDirective = "Tuân thủ quy tắc 20-20-20 cho mắt. Đứng dậy đi lại sau mỗi 45 phút.";
-    }
-
-    // Prompt updated with Dynamic Injection
     const prompt = `
-      Đóng vai: Bạn là "SmartStudy AI Coach".
+      Đóng vai: Bạn là "SmartStudy AI Mentor" - Một chuyên gia tâm lý giáo dục và quản lý thời gian cực kỳ cá nhân hóa.
       
-      THÔNG TIN NGƯỜI DÙNG (DYNAMIC CONTEXT):
-      - Học lực: ${userPerformance}
-      - Năng lượng hôm nay: ${userEnergy}/10
-      - Workload Score (AI tính toán): ${workloadScore.toFixed(1)}/10
-      - Chênh lệch Năng lượng/Workload: ${energyGap}
+      DỮ LIỆU NGƯỜI DÙNG:
+      - Profile: Học lực ${userPerformance}, Energy ${userEnergy}/10.
+      - Workload Score: ${workloadScore.toFixed(1)}/10.
+      - Thống kê: ${cleanTasks.length} tasks, Tổng ${totalHours} giờ.
       
-      CHẾ ĐỘ CHIẾN LƯỢC KÍCH HOẠT: **${strategyMode}**
-      
-      YÊU CẦU TONE GIỌNG (DYNAMIC):
-      "${toneDirective}"
+      PHÂN LOẠI HỌC SINH (ARCHETYPE):
+      - Loại: **${archetype.name}** ${archetype.icon}
+      - Đặc điểm: ${archetype.description}
+      - Phong cách lịch trình: ${archetype.scheduleStyle}
 
-      LOGIC ƯU TIÊN (DYNAMIC):
-      "${prioritizationLogic}"
-
-      CHỈ ĐẠO WELLBEING (DYNAMIC):
-      "${wellbeingDirective}"
-
-      DỮ LIỆU NHIỆM VỤ:
+      DỮ LIỆU TASKS:
       ${tasksJson}
 
-      THỐNG KÊ: Tổng ${totalHours}h, ${hardCount} task khó.
+      YÊU CẦU OUTPUT (Markdown):
+      Hãy viết một bản kế hoạch cực kỳ cá nhân hóa, nói chuyện trực tiếp với Archetype "${archetype.name}".
 
-      HÃY VIẾT GUIDEBOOK THEO CẤU TRÚC SAU (Markdown):
+      ### 👤 Hồ Sơ Học Tập (Classification)
+      - **Archetype**: ${archetype.name}
+      - **Tình trạng hiện tại**: (Mô tả ngắn gọn dựa trên Energy vs Workload).
+      - **Điểm mạnh cần phát huy**: ...
+      - **Bẫy cần tránh**: (Ví dụ: Với người cầu toàn là sa đà chi tiết, với người kiệt sức là cố quá thành quá cố).
 
-      ### 📊 Phân Tích Dữ Liệu & Lý Do Ưu Tiên
-      - **Góc nhìn AI**: Giải thích tại sao hôm nay lại chọn chế độ "${strategyMode}".
-      - **Priority Explanation**: Giải thích việc chọn task ưu tiên dựa trên LOGIC ƯU TIÊN phía trên (VD: Vì năng lượng bạn thấp, mình chỉ chọn 1 môn...).
+      ### 📊 Chiến Lược Chủ Đạo (Dựa trên ${archetype.scheduleStyle})
+      - Giải thích cách sắp xếp lịch hôm nay (Vd: Tại sao lại xếp task khó lên đầu? Tại sao lại bắt nghỉ nhiều?).
+      - **Quy tắc vàng hôm nay**: Một quy tắc duy nhất user phải nhớ.
 
-      ### ⚖️ Kiểm Soát Rủi Ro & Wellbeing
-      - **Health Check**: Đánh giá mức độ rủi ro burnout dựa trên chênh lệch năng lượng.
-      - **Actionable Advice**: Đưa ra lời khuyên từ mục CHỈ ĐẠO WELLBEING phía trên.
+      ### 📅 Lộ Trình Cá Nhân Hóa (Visual Schedule)
+      *QUAN TRỌNG: Thiết kế timeline dựa trên phong cách "${archetype.scheduleStyle}".*
+      
+      Trình bày dạng danh sách có icon, chia theo buổi (Sáng/Chiều/Tối) hoặc theo Block thời gian thực tế.
+      Ví dụ định dạng:
+      **Ngày 1 - [Ngày tháng]**:
+      - 08:00 - 10:00: [Icon] Task A (Lý do xếp giờ này)
+      - ...
 
-      ### 🧠 Chiến Lược Học Tập
-      Phân loại task vào các nhóm (Dựa trên năng lượng hiện tại):
-      - **Deep Work**: (Chỉ gợi ý nếu năng lượng > 5, nếu thấp hãy cảnh báo).
-      - **Quick Win**: Các task dễ làm đà.
-      - **Research/Review**: Task nhẹ.
+      ### 💡 Lời Khuyên Riêng (Personalized Advice)
+      - Dành riêng cho học lực "${userPerformance}": Cách học hiệu quả hơn.
+      - Dành riêng cho Energy ${userEnergy}: Cách quản lý năng lượng.
 
-      ### 🔥 Tiêu Điểm Hành Động
-      - Chọn 2-3 task theo logic ưu tiên đã định.
-      - Gợi ý kỹ thuật (Pomodoro 25/5 vs Deep Work 90/15) tùy vào năng lượng user.
-
-      ### 📅 Lộ Trình Gợi Ý (3 Ngày Tới)
-      - Lập lịch ngắn gọn.
-
-      ### 🤝 Góc Đồng Kiến Tạo (Co-creation)
-      - Tips học tập phù hợp với học lực "${userPerformance}".
-      - AI Tip: Mẹo nhỏ để tiết kiệm sức lực.
-
-      ### 💡 Thông Điệp Mentor
-      - Một câu quote phù hợp với tâm trạng "${strategyMode}".
-
-      LƯU Ý: Output Markdown thuần túy.
+      ### 🧘 Wellbeing & Đồng Kiến Tạo
+      - Một câu trích dẫn (Quote) truyền cảm hứng cho "${archetype.name}".
     `;
 
     const result = await callModel({
@@ -186,28 +199,23 @@ export const refineStudyPlan = async (
 ): Promise<string> => {
   try {
     const cleanTasks = sanitizeData(tasks);
-    const tasksJson = JSON.stringify(cleanTasks, null, 2);
+    
+    // Recalculate basic archetype for context
+    const workloadScore = 5; // Simplified for refine
+    const archetype = profile ? determineStudentArchetype(cleanTasks, profile, workloadScore) : { name: "Học sinh", scheduleStyle: "Cân bằng", description: "", icon: "" };
 
-    const studentProfileText = profile ? `Profile: Học lực ${profile.performance}, Energy ${profile.energyLevel}/10` : '';
-
-    // Refine prompt aligned with the new structure
     const prompt = `
-      CONTEXT: Bạn là SmartStudy AI Coach.
-      DỮ LIỆU GỐC: ${tasksJson}
-      ${studentProfileText}
-      KẾ HOẠCH HIỆN TẠI: ${currentPlan.substring(0, 1000)}...
+      CONTEXT: Bạn là SmartStudy AI Mentor.
+      ARCHETYPE NGƯỜI DÙNG: ${archetype.name} (${archetype.scheduleStyle}).
+      
+      KẾ HOẠCH HIỆN TẠI: ${currentPlan.substring(0, 1500)}...
       PHẢN HỒI HỌC SINH: "${comment}"
 
-      NHIỆM VỤ: Điều chỉnh Guidebook nhưng VẪN PHẢI GIỮ NGUYÊN CẤU TRÚC:
-      1. Phân Tích Dữ Liệu & Lý Do Ưu Tiên
-      2. Kiểm Soát Rủi Ro & Wellbeing (Quan trọng)
-      3. Chiến Lược Học Tập
-      4. Tiêu Điểm Hành Động
-      5. Lộ Trình Gợi Ý
-      6. Góc Đồng Kiến Tạo (Co-creation)
-      7. Thông Điệp Mentor
-
-      Hãy cập nhật nội dung dựa trên phản hồi của bạn học sinh một cách thân thiện, chú ý đến mức năng lượng hiện tại của bạn ấy.
+      NHIỆM VỤ: Điều chỉnh Guidebook. 
+      LƯU Ý QUAN TRỌNG:
+      1. Giữ nguyên cấu trúc Markdown (Hồ Sơ Học Tập, Chiến Lược, Lộ Trình...).
+      2. Mọi thay đổi phải phù hợp với Archetype "${archetype.name}" (Ví dụ: Nếu user mệt, đừng ép thêm task).
+      3. Cập nhật lịch trình cụ thể theo ý user.
     `;
 
     const result = await callModel({
@@ -229,9 +237,8 @@ export const generateMindMap = async (
   try {
     const cleanTasks = sanitizeData(tasks);
     
-    // Dynamically construct JSON based on user options
     const minimalTasks = cleanTasks.map(t => {
-      const item: any = { s: t.subject }; // Subject is always mandatory
+      const item: any = { s: t.subject };
       if (options.showDifficulty) item.d = t.difficulty;
       if (options.showHours) item.h = `${t.estimatedHours}h`;
       if (options.showDeadline) item.dl = t.deadline;
@@ -241,32 +248,10 @@ export const generateMindMap = async (
     const tasksJson = JSON.stringify(minimalTasks, null, 2);
 
     const prompt = `
-      Bạn là chuyên gia Visual Thinking & Mermaid.js "Information Architect".
+      Bạn là chuyên gia Visual Thinking & Mermaid.js.
       DỮ LIỆU: ${tasksJson}
-      YÊU CẦU: Tạo code Mermaid.js dạng "graph LR" (Trái sang Phải) phong cách Technical Blueprint.
-      
-      NGUYÊN TẮC SEMANTIC GEOMETRY (Hình học ngữ nghĩa):
-      1. Khó/Rất khó (Hard/Very Hard): Dùng hình lục giác {{Label}}.
-      2. Trung bình (Medium): Dùng hình chữ nhật [Label].
-      3. Dễ (Easy): Dùng hình bo tròn (Label).
-      
-      NGUYÊN TẮC COLOR CODING (Bảng màu kỹ thuật):
-      - Khó: fill:#f59e0b,stroke:#b45309,color:#fff (Amber)
-      - Trung bình: fill:#3b82f6,stroke:#1d4ed8,color:#fff (Blue)
-      - Dễ: fill:#10b981,stroke:#047857,color:#fff (Emerald)
-      - Nền Grid: Transparent (để UI xử lý).
-
-      SYNTAX RULES:
-      1. Label phải dùng ngoặc kép: A["Label"]
-      2. Luôn kèm emoji trong label.
-      3. Style nodes bằng classDef hoặc style trực tiếp.
-      
-      OUTPUT:
-      Trả về block code markdown:
-      \`\`\`mermaid
-      graph LR
-        ... code here ...
-      \`\`\`
+      YÊU CẦU: Tạo code Mermaid.js dạng "graph LR".
+      Output ONLY the code block.
     `;
 
     const result = await callModel({
@@ -276,17 +261,10 @@ export const generateMindMap = async (
     });
 
     let code = result || "";
-    
-    // Robust Regex Extraction to ignore conversational filler
     const mermaidRegex = /```mermaid([\s\S]*?)```/;
     const match = code.match(mermaidRegex);
-    
-    if (match && match[1]) {
-      code = match[1].trim();
-    } else {
-      // Fallback cleanup if regex fails
-      code = code.replace(/```mermaid/g, "").replace(/```/g, "").trim();
-    }
+    if (match && match[1]) code = match[1].trim();
+    else code = code.replace(/```mermaid/g, "").replace(/```/g, "").trim();
     
     return code;
   } catch (error) {
@@ -296,28 +274,5 @@ export const generateMindMap = async (
 };
 
 export const generateMarkdownTable = async (tasks: StudyTask[]): Promise<string> => {
-  try {
-    const cleanTasks = sanitizeData(tasks);
-    const tasksJson = JSON.stringify(
-      cleanTasks.map((t) => ({ subject: t.subject, desc: t.description })),
-      null,
-      2
-    );
-
-    const prompt = `
-      Bạn là "SmartStudy Visual Architect".
-      NHIỆM VỤ: Tạo một bảng Markdown để trực quan hóa kế hoạch học tập.
-      Cột: Môn học | Keywords/Chiến lược
-      DỮ LIỆU: ${tasksJson}
-    `;
-
-    const out = await callModel({
-      model: taskModelMapping.analysis.model,
-      prompt,
-    });
-    return out || "";
-  } catch (error) {
-    console.error("Table Error:", error);
-    return "";
-  }
+  return ""; // Deprecated or unused
 };
