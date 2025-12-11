@@ -24,6 +24,17 @@ export interface StudyTask {
   customSessionDuration?: string; // Allow user to override AI recommendation
 }
 
+export interface StudentProfile {
+  performance: 'Yếu' | 'Trung bình' | 'Khá' | 'Giỏi';
+  energyLevel: number; // 1-10
+}
+
+export interface MindMapOptions {
+  showDifficulty: boolean;
+  showHours: boolean;
+  showDeadline: boolean;
+}
+
 export interface AnalysisResult {
   totalHours: number;
   averageDifficulty: number;

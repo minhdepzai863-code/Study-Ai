@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StudyTask } from '../types';
+import { StudyTask, MindMapOptions, StudentProfile } from '../types';
 import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle } from 'lucide-react';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users } from 'lucide-react';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -54,6 +54,12 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [refining, setRefining] = useState(false);
   const [copied, setCopied] = useState(false);
   
+  // Student Profile State
+  const [studentProfile, setStudentProfile] = useState<StudentProfile>({
+    performance: 'Khá',
+    energyLevel: 7
+  });
+
   // Initialize state from localStorage if available
   const [guidebook, setGuidebook] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -68,6 +74,13 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     }
     return null;
   });
+
+  const [mapOptions, setMapOptions] = useState<MindMapOptions>({
+    showDifficulty: true,
+    showHours: false,
+    showDeadline: false
+  });
+  const [showMapSettings, setShowMapSettings] = useState(false);
   
   const [userComment, setUserComment] = useState('');
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
@@ -86,7 +99,8 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     setMindMapCode(null);
     setUserComment('');
     
-    const result = await generateStudyPlan(tasks);
+    // Pass profile to generation service
+    const result = await generateStudyPlan(tasks, studentProfile);
     
     setGuidebook(result);
     setLoading(false);
@@ -95,7 +109,8 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const handleGenerateMindMap = async () => {
      setIsGeneratingMap(true);
      setMindMapCode(null); // Reset previous map
-     const code = await generateMindMap(tasks);
+     setShowMapSettings(false); // Close settings if open
+     const code = await generateMindMap(tasks, mapOptions);
      if (code) {
        setMindMapCode(code);
      }
@@ -105,7 +120,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const handleRefine = async () => {
     if (!guidebook || !userComment.trim()) return;
     setRefining(true);
-    const result = await refineStudyPlan(tasks, guidebook, userComment);
+    const result = await refineStudyPlan(tasks, guidebook, userComment, studentProfile);
     setGuidebook(result);
     setRefining(false);
     setUserComment('');
@@ -135,6 +150,17 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     window.print();
   };
 
+  const toggleMapOption = (key: keyof MindMapOptions) => {
+    setMapOptions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const getEnergyLabel = (level: number) => {
+     if (level <= 3) return { text: 'Kiệt sức', color: 'text-rose-500' };
+     if (level <= 6) return { text: 'Bình thường', color: 'text-amber-500' };
+     if (level <= 8) return { text: 'Sung sức', color: 'text-emerald-500' };
+     return { text: 'Đỉnh cao', color: 'text-indigo-500' };
+  };
+
   const renderMarkdown = (text: string) => {
     if (!text) return null;
 
@@ -153,12 +179,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
           
           const titleLower = rawTitle.toLowerCase();
 
-          if (titleLower.includes('tổng quan') || titleLower.includes('sức khỏe')) HeaderIcon = Heart;
+          if (titleLower.includes('phân tích') || titleLower.includes('dữ liệu')) HeaderIcon = TrendingUp;
+          else if (titleLower.includes('sức khỏe') || titleLower.includes('rủi ro')) HeaderIcon = Heart;
           else if (titleLower.includes('chiến lược')) HeaderIcon = Brain;
           else if (titleLower.includes('tiêu điểm') || titleLower.includes('ưu tiên')) HeaderIcon = Flame;
           else if (titleLower.includes('lộ trình') || titleLower.includes('lịch') || titleLower.includes('ngày')) HeaderIcon = Calendar;
           else if (titleLower.includes('thông điệp') || titleLower.includes('mentor')) HeaderIcon = Quote;
-          else if (titleLower.includes('công cụ')) HeaderIcon = Cpu;
+          else if (titleLower.includes('đồng kiến tạo') || titleLower.includes('cộng đồng')) HeaderIcon = Users;
+          else if (titleLower.includes('bias') || titleLower.includes('thiên kiến')) HeaderIcon = ScaleIcon;
           
           return (
             <div 
@@ -265,6 +293,10 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     </div>
   );
 
+  const ScaleIcon = (props: any) => (
+      <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+  );
+
   return (
     <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
       
@@ -279,12 +311,58 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                 <Brain className="w-8 h-8" style={{ color: theme.palette[0] }} />
                 AI Guidebook
               </h2>
-              <div className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm space-y-2">
+
+              {/* User Profile Inputs */}
+              <div className="space-y-5 mb-8">
+                 
+                 {/* Energy Slider */}
+                 <div>
+                    <div className="flex justify-between items-center mb-2">
+                       <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                         <Battery className="w-4 h-4"/> Năng lượng hôm nay
+                       </label>
+                       <span className={`text-xs font-bold ${getEnergyLabel(studentProfile.energyLevel).color}`}>
+                         {studentProfile.energyLevel}/10 ({getEnergyLabel(studentProfile.energyLevel).text})
+                       </span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="10" 
+                      step="1"
+                      value={studentProfile.energyLevel}
+                      onChange={(e) => setStudentProfile(prev => ({ ...prev, energyLevel: parseInt(e.target.value) }))}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700"
+                      style={{ accentColor: theme.palette[0] }}
+                    />
+                 </div>
+
+                 {/* Academic Performance Select */}
+                 <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-2">
+                         <BarChart3 className="w-4 h-4"/> Học lực hiện tại
+                    </label>
+                    <select
+                       value={studentProfile.performance}
+                       onChange={(e) => setStudentProfile(prev => ({ ...prev, performance: e.target.value as any }))}
+                       className="w-full bg-slate-50 dark:bg-slate-800 border-transparent rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                       <option value="Yếu">Yếu (Cần hỗ trợ nhiều)</option>
+                       <option value="Trung bình">Trung bình (Cần cố gắng)</option>
+                       <option value="Khá">Khá (Duy trì phong độ)</option>
+                       <option value="Giỏi">Giỏi (Cần thử thách)</option>
+                    </select>
+                 </div>
+
+              </div>
+              
+              <div className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <p>Hệ thống sẽ tổng hợp dữ liệu để tạo ra:</p>
                 <ul className="space-y-2 font-medium text-slate-700 dark:text-slate-300">
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-full text-indigo-600"><Heart className="w-3.5 h-3.5"/></div> Tổng quan & Sức khỏe</li>
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-full text-blue-600"><TrendingUp className="w-3.5 h-3.5"/></div> Phân tích dữ liệu</li>
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-full text-indigo-600"><Heart className="w-3.5 h-3.5"/></div> Kiểm soát Rủi ro & Bias</li>
                    <li className="flex items-center gap-3"><div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-full text-amber-600"><Brain className="w-3.5 h-3.5"/></div> Chiến lược học tập</li>
-                   <li className="flex items-center gap-3"><div className="p-1.5 bg-emerald-100 dark:bg-emerald-900 rounded-full text-emerald-600"><Flame className="w-3.5 h-3.5"/></div> Tiêu điểm ưu tiên</li>
+                   <li className="flex items-center gap-3"><div className="p-1.5 bg-emerald-100 dark:bg-emerald-900 rounded-full text-emerald-600"><Users className="w-3.5 h-3.5"/></div> Đồng kiến tạo (Community)</li>
                 </ul>
               </div>
 
@@ -328,13 +406,61 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                   <div>
                      <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Student Guidebook</h1>
                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-                        Kế hoạch học tập cá nhân hóa
+                        Kế hoạch học tập cá nhân hóa & Phân tích số liệu
                      </p>
                   </div>
                </div>
                
                {/* Actions */}
                <div className="flex items-center gap-2 self-end sm:self-auto print:hidden">
+                    <div className="relative">
+                       <button
+                          onClick={() => setShowMapSettings(!showMapSettings)}
+                          className={`p-2.5 rounded-xl transition-all border ${showMapSettings ? 'bg-indigo-100 border-indigo-200 text-indigo-600' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-500 hover:bg-white'}`}
+                          title="Cấu hình Visual Map"
+                       >
+                         <Settings className="w-5 h-5" />
+                       </button>
+
+                       {showMapSettings && (
+                          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-50 animate-fade-in-up">
+                             <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-xs font-bold uppercase text-slate-400">Chi tiết hiển thị</h4>
+                                <button onClick={() => setShowMapSettings(false)} className="text-slate-400 hover:text-slate-600"><X className="w-3 h-3"/></button>
+                             </div>
+                             <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                   <input 
+                                     type="checkbox" 
+                                     checked={mapOptions.showDifficulty} 
+                                     onChange={() => toggleMapOption('showDifficulty')}
+                                     className="rounded text-indigo-500 focus:ring-indigo-500"
+                                   />
+                                   Độ khó
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                   <input 
+                                     type="checkbox" 
+                                     checked={mapOptions.showHours} 
+                                     onChange={() => toggleMapOption('showHours')}
+                                     className="rounded text-indigo-500 focus:ring-indigo-500"
+                                   />
+                                   Thời gian (Giờ)
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                   <input 
+                                     type="checkbox" 
+                                     checked={mapOptions.showDeadline} 
+                                     onChange={() => toggleMapOption('showDeadline')}
+                                     className="rounded text-indigo-500 focus:ring-indigo-500"
+                                   />
+                                   Deadline
+                                </label>
+                             </div>
+                          </div>
+                       )}
+                    </div>
+
                     <button 
                       onClick={handleGenerateMindMap}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold text-sm transition-all active:scale-95 border border-indigo-200 dark:border-indigo-800"
