@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { StudyTask, MindMapOptions, StudentProfile, SavedPlan } from '../types';
+import { StudyTask, MindMapOptions, StudentProfile, SavedPlan, LearningStyle, StudyMethod } from '../types';
 import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users, History, Save, Trash2, ChevronRight, Clock, ArrowRight, UserCheck, ShieldAlert, Target } from 'lucide-react';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users, History, Save, Trash2, ChevronRight, Clock, ArrowRight, UserCheck, ShieldAlert, Target, Eye, Ear, BookOpen, Hand, Timer, Repeat, Hourglass, Zap, ChevronDown, ChevronUp, Star, Layout, Bookmark } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AIPlannerProps {
@@ -55,11 +55,14 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
   const [loading, setLoading] = useState(false);
   const [refining, setRefining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showAdvancedProfile, setShowAdvancedProfile] = useState(false);
   
   // Student Profile State
   const [studentProfile, setStudentProfile] = useState<StudentProfile>({
     performance: 'Khá',
-    energyLevel: 7
+    energyLevel: 7,
+    learningStyle: 'Visual',
+    studyMethod: 'Pomodoro'
   });
 
   // Initialize state from localStorage if available
@@ -222,7 +225,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     const sections = text.split('###').filter(section => section.trim().length > 0);
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 sm:space-y-10 pb-12">
         {sections.map((section, index) => {
           const lines = section.trim().split('\n');
           const rawTitle = lines[0].trim(); // First line is the title
@@ -259,43 +262,62 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             const archetype = profileData['archetype'] || profileData['loại'] || "Học sinh";
             
             return (
-              <div key={index} className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-slate-900 to-indigo-900 text-white shadow-xl animate-fade-in-up">
+              <div key={index} className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-2xl animate-fade-in-up border border-indigo-500/20">
                  {/* Decorative background */}
-                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+                 <div className="absolute bottom-0 left-0 w-80 h-80 bg-fuchsia-500/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2"></div>
+                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
                  
-                 <div className="relative z-10 p-8 flex flex-col md:flex-row gap-8 items-start">
+                 <div className="relative z-10 p-8 sm:p-10 flex flex-col md:flex-row gap-8 sm:gap-12 items-start">
                     {/* Left: Avatar/Icon */}
-                    <div className="flex-shrink-0 flex flex-col items-center gap-4">
-                       <div className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-4xl shadow-inner">
-                          <UserCheck className="w-10 h-10 text-indigo-300" />
+                    <div className="flex-shrink-0 flex flex-col items-center gap-5 mx-auto md:mx-0">
+                       <div className="w-28 h-28 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(99,102,241,0.3)] relative group">
+                          <UserCheck className="w-12 h-12 text-indigo-300 group-hover:scale-110 transition-transform duration-500" />
+                          <div className="absolute inset-0 rounded-full border border-white/20 animate-pulse-slow"></div>
                        </div>
-                       <span className="px-4 py-1.5 rounded-full bg-indigo-500/30 border border-indigo-400/30 text-xs font-bold uppercase tracking-wider">
-                         Đã phân loại
+                       <span className="px-5 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-xs font-bold uppercase tracking-widest text-indigo-200">
+                         Persona
                        </span>
                     </div>
 
                     {/* Right: Info */}
-                    <div className="flex-grow space-y-4">
+                    <div className="flex-grow space-y-6 w-full text-center md:text-left">
                        <div>
-                          <h3 className="text-3xl font-extrabold tracking-tight text-white mb-1">
+                          <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 leading-tight">
                              {archetype.replace(/\*\*/g, '')}
                           </h3>
-                          <p className="text-indigo-200 font-medium">Hồ sơ học tập & Phong cách cá nhân</p>
+                          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                              <span className="px-3 py-1.5 rounded-lg bg-white/10 text-sm font-medium border border-white/5 flex items-center gap-2 backdrop-blur-md">
+                                {studentProfile.learningStyle === 'Visual' ? <Eye className="w-4 h-4 text-blue-300"/> : studentProfile.learningStyle === 'Auditory' ? <Ear className="w-4 h-4 text-amber-300"/> : <Brain className="w-4 h-4 text-emerald-300"/>}
+                                <span className="text-slate-200">{studentProfile.learningStyle} Learner</span>
+                              </span>
+                              <span className="px-3 py-1.5 rounded-lg bg-white/10 text-sm font-medium border border-white/5 flex items-center gap-2 backdrop-blur-md">
+                                <Zap className="w-4 h-4 text-yellow-300"/>
+                                <span className="text-slate-200">{studentProfile.studyMethod} Method</span>
+                              </span>
+                          </div>
                        </div>
                        
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-left">
                           {contentLines.map((line, lIdx) => {
                              const trimmed = line.trim();
-                             if (!trimmed || trimmed.startsWith('Archetype')) return null;
+                             if (!trimmed || trimmed.startsWith('Archetype') || trimmed.toLowerCase().startsWith('phong cách')) return null;
                              
-                             let icon = <Check className="w-4 h-4 text-emerald-400"/>;
-                             if (trimmed.toLowerCase().includes('bẫy') || trimmed.toLowerCase().includes('yếu')) icon = <ShieldAlert className="w-4 h-4 text-rose-400"/>;
-                             if (trimmed.toLowerCase().includes('mạnh') || trimmed.toLowerCase().includes('tốt')) icon = <Target className="w-4 h-4 text-emerald-400"/>;
+                             let icon = <Bookmark className="w-5 h-5 text-indigo-300"/>;
+                             let bgClass = "bg-indigo-500/10 border-indigo-500/20";
+
+                             if (trimmed.toLowerCase().includes('bẫy') || trimmed.toLowerCase().includes('yếu')) {
+                                icon = <ShieldAlert className="w-5 h-5 text-rose-400"/>;
+                                bgClass = "bg-rose-500/10 border-rose-500/20";
+                             }
+                             if (trimmed.toLowerCase().includes('mạnh') || trimmed.toLowerCase().includes('tốt')) {
+                                icon = <Target className="w-5 h-5 text-emerald-400"/>;
+                                bgClass = "bg-emerald-500/10 border-emerald-500/20";
+                             }
 
                              return (
-                                <div key={lIdx} className="bg-white/5 rounded-xl p-3 border border-white/10 text-sm leading-relaxed text-slate-200">
-                                   <div className="flex gap-2">
+                                <div key={lIdx} className={`${bgClass} backdrop-blur-sm rounded-xl p-4 border text-sm leading-relaxed text-slate-200 transition-all hover:bg-opacity-20`}>
+                                   <div className="flex gap-3">
                                       <div className="mt-0.5 flex-shrink-0">{icon}</div>
                                       <div>{trimmed.replace(/^[-*]\s*/, '').replace(/\*\*/g, '')}</div>
                                    </div>
@@ -338,94 +360,122 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
             return (
               <div 
                 key={index}
-                className="relative rounded-[2rem] p-8 animate-fade-in-up break-inside-avoid bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900 shadow-lg overflow-hidden"
+                className="relative rounded-[2.5rem] p-8 sm:p-10 animate-fade-in-up break-inside-avoid bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden"
               >
                   {/* Visual Background Elements */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl"></div>
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[60px]"></div>
 
                   {/* Header */}
-                  <div className="relative z-10 flex items-center gap-4 mb-8">
-                    <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                      <HeaderIcon className="w-6 h-6" />
+                  <div className="relative z-10 flex items-center gap-5 mb-10 pb-6 border-b border-slate-100 dark:border-slate-700/50">
+                    <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shadow-sm transform -rotate-2">
+                      <HeaderIcon className="w-8 h-8" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
+                      <h3 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">
                         {rawTitle.replace(/^[*_]+|[*_]+$/g, '')}
                       </h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm">Lịch trình tối ưu hóa cho Archetype của bạn</p>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Lịch trình tối ưu hóa cho Archetype của bạn</p>
                     </div>
                   </div>
 
-                  {/* Horizontal Timeline Cards */}
-                  <div className="relative z-10 flex flex-col gap-6">
+                  {/* Vertical Timeline Cards */}
+                  <div className="relative z-10 flex flex-col gap-10">
                      {dayItems.length > 0 ? dayItems.map((day, dIdx) => (
-                        <div 
-                          key={dIdx} 
-                          className="flex flex-col sm:flex-row gap-4 sm:gap-6 border-l-2 border-indigo-200 dark:border-indigo-800 pl-6 relative"
-                        >
-                           <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-4 border-indigo-500"></div>
+                        <div key={dIdx} className="relative pl-8 sm:pl-10 border-l-2 border-indigo-100 dark:border-indigo-900/50">
+                           {/* Timeline dot */}
+                           <div className="absolute -left-[11px] top-0 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-4 border-indigo-500 shadow-lg"></div>
                            
-                           <div className="w-full sm:w-32 flex-shrink-0">
-                              <span className="font-bold text-lg text-indigo-600 dark:text-indigo-400 block">{day.day}</span>
+                           <div className="mb-6">
+                              <span className="inline-block px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-sm font-bold uppercase tracking-wider shadow-sm border border-indigo-100 dark:border-indigo-800">
+                                {day.day}
+                              </span>
                            </div>
                            
-                           <div className="flex-grow space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
+                           <div className="space-y-4">
                               {day.content.map((item, iIdx) => (
-                                 <div key={iIdx} className="flex gap-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed items-start">
-                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></div>
-                                    <span>{item}</span>
+                                 <div 
+                                    key={iIdx} 
+                                    className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all hover:shadow-md group"
+                                 >
+                                    <div className="flex gap-4 items-start">
+                                      <div className="mt-1.5 w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0 group-hover:scale-125 transition-transform"></div>
+                                      <span className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium text-base">
+                                        {/* Highlight time logic if needed, simple render for now */}
+                                        {item}
+                                      </span>
+                                    </div>
                                  </div>
                               ))}
                            </div>
                         </div>
                      )) : (
-                        <div className="text-slate-400 italic">Không tìm thấy dữ liệu lịch trình chi tiết.</div>
+                        <div className="text-slate-400 italic text-center py-10">Không tìm thấy dữ liệu lịch trình chi tiết.</div>
                      )}
                   </div>
               </div>
             );
           }
 
-          // STANDARD RENDERER FOR OTHER SECTIONS
+          // --- STANDARD RENDERER FOR OTHER SECTIONS (STRATEGY, ADVICE, ETC) ---
+          
+          // Determine specific visual theme based on section title
+          let cardStyle = "bg-white dark:bg-slate-800/50 border-slate-100 dark:border-slate-700";
+          let iconBg = theme.palette[0];
+          let iconColor = "#fff";
+          let accentColorClass = "text-indigo-600 dark:text-indigo-400";
+
+          if (titleLower.includes('chiến lược') || titleLower.includes('phân tích')) {
+             cardStyle = "bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-900/20 dark:to-slate-800 border-blue-100 dark:border-blue-800/50";
+             iconBg = "#3b82f6"; // Blue-500
+             accentColorClass = "text-blue-600 dark:text-blue-400";
+          } else if (titleLower.includes('lời khuyên') || titleLower.includes('góc')) {
+             cardStyle = "bg-gradient-to-br from-amber-50/80 to-white dark:from-amber-900/20 dark:to-slate-800 border-amber-100 dark:border-amber-800/50";
+             iconBg = "#f59e0b"; // Amber-500
+             accentColorClass = "text-amber-600 dark:text-amber-400";
+          } else if (titleLower.includes('wellbeing') || titleLower.includes('đồng kiến tạo')) {
+             cardStyle = "bg-gradient-to-br from-emerald-50/80 to-white dark:from-emerald-900/20 dark:to-slate-800 border-emerald-100 dark:border-emerald-800/50";
+             iconBg = "#10b981"; // Emerald-500
+             accentColorClass = "text-emerald-600 dark:text-emerald-400";
+          }
+
           return (
             <div 
               key={index} 
-              className="relative rounded-[2rem] p-6 sm:p-8 transition-all duration-500 hover:shadow-lg animate-fade-in-up break-inside-avoid bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 shadow-sm"
+              className={`relative rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500 hover:shadow-xl animate-fade-in-up break-inside-avoid border shadow-sm ${cardStyle}`}
               style={{ 
                 animationDelay: `${index * 0.15}s`
               }}
             >
               {/* Card Header */}
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-5 mb-8 border-b border-black/5 dark:border-white/5 pb-6">
                 <div 
-                  className="p-3 rounded-2xl shadow-sm bg-slate-50 dark:bg-slate-700"
-                  style={{ backgroundColor: theme.palette[0], color: '#fff' }}
+                  className="p-3.5 rounded-2xl shadow-lg shadow-black/5 transform rotate-3"
+                  style={{ backgroundColor: iconBg, color: iconColor }}
                 >
-                  <HeaderIcon className="w-6 h-6" />
+                  <HeaderIcon className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-                  {rawTitle.replace(/^[*_]+|[*_]+$/g, '')} {/* Remove bold markers from title if present */}
+                <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-none">
+                  {rawTitle.replace(/^[*_]+|[*_]+$/g, '')}
                 </h3>
               </div>
 
               {/* Card Content */}
-              <div className="space-y-4">
+              <div className="space-y-5 text-slate-600 dark:text-slate-300">
                 {contentLines.map((line, lineIdx) => {
                   const trimmed = line.trim();
                   if (!trimmed) return null;
 
                   // Parse Markdown Table
                   if (trimmed.startsWith('|')) {
-                     // Simple table rendering logic
                      const cells = trimmed.split('|').filter(c => c.trim() !== '');
-                     if (cells.length === 0 || trimmed.includes('---')) return null; // Skip separator lines
+                     if (cells.length === 0 || trimmed.includes('---')) return null;
                      
                      const isHeader = lineIdx < 4 && contentLines[lineIdx+1]?.includes('---');
                      
                      return (
-                        <div key={lineIdx} className="grid gap-2 border-b border-slate-100 dark:border-slate-700 py-2" style={{ gridTemplateColumns: `repeat(${cells.length}, 1fr)`}}>
+                        <div key={lineIdx} className="grid gap-4 border-b border-black/5 dark:border-white/10 py-3 first:border-t" style={{ gridTemplateColumns: `repeat(${cells.length}, 1fr)`}}>
                            {cells.map((cell, cIdx) => (
-                              <div key={cIdx} className={`text-sm ${isHeader ? 'font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider' : 'text-slate-600 dark:text-slate-300'}`}>
+                              <div key={cIdx} className={`text-sm ${isHeader ? 'font-bold text-slate-900 dark:text-white uppercase tracking-wider' : 'text-slate-600 dark:text-slate-300'}`}>
                                  {cell.trim()}
                               </div>
                            ))}
@@ -433,35 +483,57 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                      )
                   }
 
-                  // Parse Bold (**text**)
+                  // Enhanced Bold Parsing with Highlight
                   const parseBold = (str: string) => str.split('**').map((part, i) => 
-                    i % 2 === 1 ? <strong key={i} className="font-bold text-slate-900 dark:text-white">{part}</strong> : part
+                    i % 2 === 1 ? (
+                      <span key={i} className={`font-extrabold text-slate-900 dark:text-white bg-white/50 dark:bg-white/10 px-1 rounded box-decoration-clone shadow-sm`}>
+                        {part}
+                      </span>
+                    ) : part
                   );
 
-                  // Blockquote (>)
+                  // Enhanced Blockquote
                   if (trimmed.startsWith('>')) {
                     return (
-                      <div key={lineIdx} className="pl-6 border-l-4 border-indigo-200 dark:border-indigo-800 italic text-slate-600 dark:text-slate-400 py-2">
-                        {parseBold(trimmed.substring(1))}
-                      </div>
-                    );
-                  }
-
-                  // List Item
-                  if (trimmed.startsWith('- ')) {
-                    return (
-                      <div key={lineIdx} className="flex gap-3 items-start group">
-                        <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-150" style={{ backgroundColor: theme.palette[1] }}></span>
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-[1.05rem]">
-                          {parseBold(trimmed.substring(2))}
+                      <div key={lineIdx} className="relative pl-10 pr-6 py-6 my-6 rounded-2xl bg-white/60 dark:bg-slate-900/40 border border-indigo-100 dark:border-indigo-900 shadow-inner">
+                        <Quote className={`absolute left-4 top-4 w-6 h-6 opacity-40 ${accentColorClass}`} />
+                        <p className="relative z-10 font-medium text-lg leading-relaxed italic text-slate-700 dark:text-slate-200">
+                             "{parseBold(trimmed.substring(1).trim())}"
                         </p>
                       </div>
                     );
                   }
 
+                  // Enhanced List Item
+                  if (trimmed.startsWith('- ')) {
+                    return (
+                      <div key={lineIdx} className="flex gap-4 items-start group pl-1">
+                        <div className="mt-2.5 w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300 group-hover:scale-150 group-hover:ring-4 ring-current opacity-40" style={{ color: iconBg }}>
+                            <div className="w-full h-full rounded-full bg-current"></div>
+                        </div>
+                        <p className="leading-relaxed text-base sm:text-lg">
+                          {parseBold(trimmed.substring(2))}
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                   // Numbered List
+                  if (/^\d+\./.test(trimmed)) {
+                     const [num, ...rest] = trimmed.split('.');
+                     return (
+                        <div key={lineIdx} className="flex gap-4 items-start group pl-1">
+                           <span className={`font-black text-lg ${accentColorClass} min-w-[1.5rem]`}>{num}.</span>
+                           <p className="leading-relaxed text-base sm:text-lg">
+                              {parseBold(rest.join('.').trim())}
+                           </p>
+                        </div>
+                     )
+                  }
+
                   // Regular Paragraph
                   return (
-                    <p key={lineIdx} className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-[1.05rem]">
+                    <p key={lineIdx} className="leading-relaxed text-base sm:text-lg">
                       {parseBold(trimmed)}
                     </p>
                   );
@@ -476,24 +548,22 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
 
   // Skeleton Loader Component
   const SkeletonLoader = () => (
-    <div className="max-w-3xl mx-auto space-y-8 animate-pulse p-8">
-      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 mb-10"></div>
+    <div className="max-w-3xl mx-auto space-y-10 animate-pulse p-10">
+      <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-full w-2/3 mb-12"></div>
       {[1, 2, 3].map((i) => (
-        <div key={i} className="space-y-4">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-            <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-1/3"></div>
+        <div key={i} className="space-y-5 p-6 border border-slate-100 dark:border-slate-800 rounded-[2rem]">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-2xl"></div>
+            <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-full w-1/3"></div>
           </div>
-          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-full"></div>
-          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-5/6"></div>
-          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4/6"></div>
+          <div className="space-y-3">
+             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-full"></div>
+             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-5/6"></div>
+             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4/6"></div>
+          </div>
         </div>
       ))}
     </div>
-  );
-
-  const ScaleIcon = (props: any) => (
-      <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
   );
 
   return (
@@ -626,6 +696,80 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                     <option value="Khá">Khá (Duy trì phong độ)</option>
                     <option value="Giỏi">Giỏi (Cần thử thách)</option>
                  </select>
+              </div>
+
+              {/* --- ADVANCED PROFILE TOGGLE --- */}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                  <button 
+                    onClick={() => setShowAdvancedProfile(!showAdvancedProfile)}
+                    className="flex items-center justify-between w-full text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors mb-4"
+                  >
+                    <span className="flex items-center gap-2"><UserCheck className="w-4 h-4"/> Hồ sơ chuyên sâu</span>
+                    {showAdvancedProfile ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
+                  </button>
+                  
+                  {showAdvancedProfile && (
+                     <div className="space-y-4 animate-fade-in">
+                        {/* Learning Style */}
+                        <div className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                           <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-3">
+                              Phong cách học (VARK)
+                           </label>
+                           <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { id: 'Visual', icon: Eye, label: 'Visual', color: 'text-blue-500' },
+                                { id: 'Auditory', icon: Ear, label: 'Auditory', color: 'text-amber-500' },
+                                { id: 'ReadWrite', icon: BookOpen, label: 'R/W', color: 'text-emerald-500' },
+                                { id: 'Kinesthetic', icon: Hand, label: 'Kinesthetic', color: 'text-rose-500' },
+                              ].map((item) => (
+                                 <button
+                                   key={item.id}
+                                   onClick={() => setStudentProfile(prev => ({ ...prev, learningStyle: item.id as LearningStyle }))}
+                                   className={`p-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all border ${
+                                     studentProfile.learningStyle === item.id 
+                                     ? 'bg-white dark:bg-slate-700 border-indigo-200 shadow-md ring-1 ring-indigo-500/50' 
+                                     : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500'
+                                   }`}
+                                 >
+                                    <item.icon className={`w-5 h-5 ${studentProfile.learningStyle === item.id ? item.color : 'text-slate-400'}`} />
+                                    <span>{item.label}</span>
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+
+                        {/* Study Method */}
+                        <div className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                           <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-3">
+                              Phương pháp ưa thích
+                           </label>
+                           <div className="space-y-2">
+                             {[
+                               { id: 'Pomodoro', label: 'Pomodoro (25/5)', icon: Timer },
+                               { id: 'Feynman', label: 'Feynman (Giảng lại)', icon: Users },
+                               { id: 'SpacedRepetition', label: 'Spaced Repetition', icon: Repeat },
+                               { id: 'Flowtime', label: 'Flowtime (Linh hoạt)', icon: Hourglass },
+                             ].map((method) => (
+                               <button
+                                  key={method.id}
+                                  onClick={() => setStudentProfile(prev => ({ ...prev, studyMethod: method.id as StudyMethod }))}
+                                  className={`w-full flex items-center gap-3 p-3 rounded-xl text-xs font-bold transition-all border ${
+                                     studentProfile.studyMethod === method.id
+                                     ? 'bg-white dark:bg-slate-700 border-indigo-200 shadow-sm'
+                                     : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500'
+                                  }`}
+                               >
+                                  <div className={`p-1.5 rounded-lg ${studentProfile.studyMethod === method.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    <method.icon className="w-4 h-4" />
+                                  </div>
+                                  <span className={studentProfile.studyMethod === method.id ? 'text-slate-800 dark:text-white' : ''}>{method.label}</span>
+                                  {studentProfile.studyMethod === method.id && <Check className="w-3.5 h-3.5 ml-auto text-indigo-500"/>}
+                               </button>
+                             ))}
+                           </div>
+                        </div>
+                     </div>
+                  )}
               </div>
 
               {/* Action Button */}

@@ -1,3 +1,4 @@
+
 export enum DifficultyLevel {
   EASY = 'Dễ',
   MEDIUM = 'Trung bình',
@@ -10,6 +11,9 @@ export enum PriorityLevel {
   MEDIUM = 'Trung bình',
   LOW = 'Thấp'
 }
+
+export type LearningStyle = 'Visual' | 'Auditory' | 'ReadWrite' | 'Kinesthetic' | 'Mixed';
+export type StudyMethod = 'Pomodoro' | 'Feynman' | 'SpacedRepetition' | 'Flowtime' | 'Pareto';
 
 export interface StudyTask {
   id: string;
@@ -27,6 +31,8 @@ export interface StudyTask {
 export interface StudentProfile {
   performance: 'Yếu' | 'Trung bình' | 'Khá' | 'Giỏi';
   energyLevel: number; // 1-10
+  learningStyle?: LearningStyle;
+  studyMethod?: StudyMethod;
 }
 
 export interface MindMapOptions {

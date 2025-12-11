@@ -128,6 +128,8 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
 
     const userEnergy = profile?.energyLevel || 7;
     const userPerformance = profile?.performance || 'Khá';
+    const learningStyle = profile?.learningStyle || 'Mixed';
+    const studyMethod = profile?.studyMethod || 'Pomodoro';
 
     // 2. Classify Student
     const archetype = determineStudentArchetype(cleanTasks, { energyLevel: userEnergy, performance: userPerformance }, workloadScore);
@@ -137,6 +139,8 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
       
       DỮ LIỆU NGƯỜI DÙNG:
       - Profile: Học lực ${userPerformance}, Energy ${userEnergy}/10.
+      - Phong cách học (VARK): **${learningStyle}**.
+      - Phương pháp ưa thích: **${studyMethod}**.
       - Workload Score: ${workloadScore.toFixed(1)}/10.
       - Thống kê: ${cleanTasks.length} tasks, Tổng ${totalHours} giờ.
       
@@ -150,29 +154,37 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
 
       YÊU CẦU OUTPUT (Markdown):
       Hãy viết một bản kế hoạch cực kỳ cá nhân hóa, nói chuyện trực tiếp với Archetype "${archetype.name}".
+      
+      *LƯU Ý ĐẶC BIỆT*:
+      - Vì người dùng học theo kiểu "${learningStyle}", hãy đề xuất cách tiếp cận phù hợp (Ví dụ: Visual -> Vẽ sơ đồ, Auditory -> Nghe lại bài giảng/Giảng lại cho người khác).
+      - Áp dụng phương pháp "${studyMethod}" vào thiết kế lịch trình (Ví dụ: Nếu Feynman -> Dành thời gian tự giảng lại; Nếu Pomodoro -> Chia block 25p).
 
       ### 👤 Hồ Sơ Học Tập (Classification)
       - **Archetype**: ${archetype.name}
+      - **Phong cách học tập**: ${learningStyle} (Đề xuất nhanh cách tối ưu: [Gợi ý ngắn]).
       - **Tình trạng hiện tại**: (Mô tả ngắn gọn dựa trên Energy vs Workload).
       - **Điểm mạnh cần phát huy**: ...
-      - **Bẫy cần tránh**: (Ví dụ: Với người cầu toàn là sa đà chi tiết, với người kiệt sức là cố quá thành quá cố).
+      - **Bẫy cần tránh**: ...
 
-      ### 📊 Chiến Lược Chủ Đạo (Dựa trên ${archetype.scheduleStyle})
-      - Giải thích cách sắp xếp lịch hôm nay (Vd: Tại sao lại xếp task khó lên đầu? Tại sao lại bắt nghỉ nhiều?).
+      ### 📊 Chiến Lược Chủ Đạo (Dựa trên ${archetype.scheduleStyle} + ${studyMethod})
+      - Giải thích cách sắp xếp lịch hôm nay.
+      - **Chiến thuật áp dụng**: Giải thích cách dùng phương pháp ${studyMethod} cho các task cụ thể dưới đây.
       - **Quy tắc vàng hôm nay**: Một quy tắc duy nhất user phải nhớ.
 
       ### 📅 Lộ Trình Cá Nhân Hóa (Visual Schedule)
-      *QUAN TRỌNG: Thiết kế timeline dựa trên phong cách "${archetype.scheduleStyle}".*
+      *QUAN TRỌNG: Thiết kế timeline dựa trên phong cách "${archetype.scheduleStyle}" và chia block theo "${studyMethod}".*
       
-      Trình bày dạng danh sách có icon, chia theo buổi (Sáng/Chiều/Tối) hoặc theo Block thời gian thực tế.
+      Trình bày dạng danh sách có icon.
       Ví dụ định dạng:
       **Ngày 1 - [Ngày tháng]**:
-      - 08:00 - 10:00: [Icon] Task A (Lý do xếp giờ này)
+      - 08:00 - 08:25: [Icon] Task A (Block 1 - ${studyMethod})
+      - 08:25 - 08:30: Nghỉ ngắn
       - ...
 
       ### 💡 Lời Khuyên Riêng (Personalized Advice)
-      - Dành riêng cho học lực "${userPerformance}": Cách học hiệu quả hơn.
-      - Dành riêng cho Energy ${userEnergy}: Cách quản lý năng lượng.
+      - Dành riêng cho học lực "${userPerformance}".
+      - Dành riêng cho Energy ${userEnergy}.
+      - **Góc ${learningStyle}**: Mẹo học nhanh nhớ lâu phù hợp với phong cách này.
 
       ### 🧘 Wellbeing & Đồng Kiến Tạo
       - Một câu trích dẫn (Quote) truyền cảm hứng cho "${archetype.name}".
@@ -207,6 +219,7 @@ export const refineStudyPlan = async (
     const prompt = `
       CONTEXT: Bạn là SmartStudy AI Mentor.
       ARCHETYPE NGƯỜI DÙNG: ${archetype.name} (${archetype.scheduleStyle}).
+      PROFILE MỞ RỘNG: Học kiểu ${profile?.learningStyle || 'Mixed'}, thích ${profile?.studyMethod || 'Linh hoạt'}.
       
       KẾ HOẠCH HIỆN TẠI: ${currentPlan.substring(0, 1500)}...
       PHẢN HỒI HỌC SINH: "${comment}"
@@ -214,7 +227,7 @@ export const refineStudyPlan = async (
       NHIỆM VỤ: Điều chỉnh Guidebook. 
       LƯU Ý QUAN TRỌNG:
       1. Giữ nguyên cấu trúc Markdown (Hồ Sơ Học Tập, Chiến Lược, Lộ Trình...).
-      2. Mọi thay đổi phải phù hợp với Archetype "${archetype.name}" (Ví dụ: Nếu user mệt, đừng ép thêm task).
+      2. Mọi thay đổi phải phù hợp với Archetype "${archetype.name}" và phong cách học của họ.
       3. Cập nhật lịch trình cụ thể theo ý user.
     `;
 
