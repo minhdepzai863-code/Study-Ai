@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { StudyTask, MindMapOptions, StudentProfile, SavedPlan, LearningStyle, StudyMethod } from '../types';
-import { generateStudyPlan, refineStudyPlan, generateMindMap } from '../services/geminiService';
-import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users, History, Save, Trash2, ChevronRight, Clock, ArrowRight, UserCheck, ShieldAlert, Target, Eye, Ear, BookOpen, Hand, Timer, Repeat, Hourglass, Zap, ChevronDown, ChevronUp, Star, Layout, Bookmark } from 'lucide-react';
+import { generateStudyPlan, refineStudyPlan, generateMindMap, calculateWellbeingStats } from '../services/geminiService';
+import { Sparkles, Loader2, FileText, MessageSquare, Send, Calendar, Network, Check, Printer, Download, Copy, Brain, Cpu, TrendingUp, Lightbulb, GraduationCap, Heart, Flame, Quote, AlertTriangle, PieChart, Settings, X, Battery, BarChart3, Users, History, Save, Trash2, ChevronRight, Clock, ArrowRight, UserCheck, ShieldAlert, Target, Eye, Ear, BookOpen, Hand, Timer, Repeat, Hourglass, Zap, ChevronDown, ChevronUp, Star, Layout, Bookmark, Activity, Info } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { MiniChatbot } from './MiniChatbot';
 
 interface AIPlannerProps {
   tasks: StudyTask[];
@@ -64,6 +65,11 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
     learningStyle: 'Visual',
     studyMethod: 'Pomodoro'
   });
+
+  // Calculate Wellbeing Stats on the fly based on tasks & profile
+  const wellbeingStats = useMemo(() => {
+     return calculateWellbeingStats(tasks, studentProfile);
+  }, [tasks, studentProfile]);
 
   // Initialize state from localStorage if available
   const [guidebook, setGuidebook] = useState<string | null>(() => {
@@ -301,7 +307,7 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-left">
                           {contentLines.map((line, lIdx) => {
                              const trimmed = line.trim();
-                             if (!trimmed || trimmed.startsWith('Archetype') || trimmed.toLowerCase().startsWith('phong cách')) return null;
+                             if (!trimmed || trimmed.startsWith('Archetype') || trimmed.toLowerCase().startsWith('phong cách') || trimmed.toLowerCase().startsWith('wellbeing')) return null;
                              
                              let icon = <Bookmark className="w-5 h-5 text-indigo-300"/>;
                              let bgClass = "bg-indigo-500/10 border-indigo-500/20";
@@ -812,188 +818,280 @@ export const AIPlanner: React.FC<AIPlannerProps> = ({ tasks, theme }) => {
         RIGHT COLUMN: Document Output
         ------------------------------------------------
       */}
-      <div className="lg:col-span-8 print:col-span-12 print:w-full">
+      <div className="lg:col-span-8 print:col-span-12 print:w-full relative">
         {loading ? (
            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 min-h-[600px]">
               <SkeletonLoader />
            </div>
         ) : guidebook ? (
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col print:shadow-none print:border-none">
-            {/* Header */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-6 sm:p-8 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-md print:bg-transparent print:border-b-2 print:border-slate-200">
-               <div className="flex items-center gap-5 w-full sm:w-auto">
-                  <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600 print:hidden">
-                    <FileText className="w-8 h-8" style={{ color: theme.palette[0] }}/>
-                  </div>
-                  <div>
-                     <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Student Guidebook</h1>
-                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-                        Kế hoạch học tập cá nhân hóa & Phân tích số liệu
-                     </p>
-                  </div>
-               </div>
-               
-               {/* Actions */}
-               <div className="flex items-center gap-2 self-end sm:self-auto print:hidden">
-                    <div className="relative">
-                       <button
-                          onClick={() => setShowMapSettings(!showMapSettings)}
-                          className={`p-2.5 rounded-xl transition-all border ${showMapSettings ? 'bg-indigo-100 border-indigo-200 text-indigo-600' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-500 hover:bg-white'}`}
-                          title="Cấu hình Visual Map"
-                       >
-                         <Settings className="w-5 h-5" />
-                       </button>
-
-                       {showMapSettings && (
-                          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-50 animate-fade-in-up">
-                             <div className="flex justify-between items-center mb-3">
-                                <h4 className="text-xs font-bold uppercase text-slate-400">Chi tiết hiển thị</h4>
-                                <button onClick={() => setShowMapSettings(false)} className="text-slate-400 hover:text-slate-600"><X className="w-3 h-3"/></button>
-                             </div>
-                             <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
-                                   <input 
-                                     type="checkbox" 
-                                     checked={mapOptions.showDifficulty} 
-                                     onChange={() => toggleMapOption('showDifficulty')}
-                                     className="rounded text-indigo-500 focus:ring-indigo-500"
-                                   />
-                                   Độ khó
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
-                                   <input 
-                                     type="checkbox" 
-                                     checked={mapOptions.showHours} 
-                                     onChange={() => toggleMapOption('showHours')}
-                                     className="rounded text-indigo-500 focus:ring-indigo-500"
-                                   />
-                                   Thời gian (Giờ)
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
-                                   <input 
-                                     type="checkbox" 
-                                     checked={mapOptions.showDeadline} 
-                                     onChange={() => toggleMapOption('showDeadline')}
-                                     className="rounded text-indigo-500 focus:ring-indigo-500"
-                                   />
-                                   Deadline
-                                </label>
-                             </div>
-                          </div>
-                       )}
+          <>
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[600px] animate-fade-in-up flex flex-col print:shadow-none print:border-none">
+              {/* Header */}
+              <div className="bg-slate-50/50 dark:bg-slate-800/50 p-6 sm:p-8 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-md print:bg-transparent print:border-b-2 print:border-slate-200">
+                <div className="flex items-center gap-5 w-full sm:w-auto">
+                    <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-600 print:hidden">
+                      <FileText className="w-8 h-8" style={{ color: theme.palette[0] }}/>
                     </div>
+                    <div>
+                      <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">Student Guidebook</h1>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+                          Kế hoạch học tập cá nhân hóa & Phân tích số liệu
+                      </p>
+                    </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center gap-2 self-end sm:self-auto print:hidden">
+                      <div className="relative">
+                        <button
+                            onClick={() => setShowMapSettings(!showMapSettings)}
+                            className={`p-2.5 rounded-xl transition-all border ${showMapSettings ? 'bg-indigo-100 border-indigo-200 text-indigo-600' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-500 hover:bg-white'}`}
+                            title="Cấu hình Visual Map"
+                        >
+                          <Settings className="w-5 h-5" />
+                        </button>
 
-                    <button 
-                      onClick={handleGenerateMindMap}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold text-sm transition-all active:scale-95 border border-indigo-200 dark:border-indigo-800"
-                      disabled={isGeneratingMap}
-                    >
-                      {isGeneratingMap ? <Loader2 className="w-4 h-4 animate-spin"/> : <Network className="w-4 h-4"/>}
-                      <span className="hidden sm:inline">Visual Map</span>
-                    </button>
-
-                    <button 
-                      onClick={handleSavePlan}
-                      className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all border border-emerald-200 dark:border-emerald-800 active:scale-95"
-                      title="Lưu kế hoạch"
-                    >
-                      <Save className="w-5 h-5"/>
-                    </button>
-
-                    <button 
-                      onClick={handleCopy}
-                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
-                      title="Sao chép nội dung"
-                    >
-                      {copied ? <Check className="w-5 h-5 text-emerald-500"/> : <Copy className="w-5 h-5"/>}
-                    </button>
-                    <button 
-                      onClick={handleDownload}
-                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
-                      title="Tải xuống (Markdown)"
-                    >
-                      <Download className="w-5 h-5"/>
-                    </button>
-                    <button 
-                      onClick={handlePrint}
-                      className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
-                      title="In / Lưu PDF"
-                    >
-                      <Printer className="w-5 h-5"/>
-                    </button>
-               </div>
-            </div>
-            
-            {/* Content Body */}
-            <div className="p-6 sm:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20 print:bg-white">
-               {refining ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: theme.palette[0] }} />
-                    <p className="font-medium">AI đang điều chỉnh kế hoạch theo ý bạn...</p>
-                  </div>
-               ) : (
-                  <div className="max-w-4xl mx-auto">
-                    {/* Visual AI MindMap Section (Inserted if generated) */}
-                    {mindMapCode && (
-                       <div className="mb-10 p-1 bg-gradient-to-br from-violet-500 via-indigo-500 to-fuchsia-500 rounded-[2rem] shadow-xl animate-fade-in-up">
-                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-[1.9rem] p-6 sm:p-8 relative overflow-hidden">
-                              {/* Decorative Grid Background for Map */}
-                              <div className="absolute inset-0 bg-dot-pattern opacity-30 pointer-events-none"></div>
-                              
-                              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 relative z-10">
-                                 <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl text-white shadow-md">
-                                   <Network className="w-5 h-5"/>
-                                 </div>
-                                 <h3 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight">SmartStudy Visual Map</h3>
-                                 <span className="ml-auto text-xs font-bold uppercase text-white bg-slate-800 px-3 py-1.5 rounded-full shadow-sm">Live Render</span>
+                        {showMapSettings && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-50 animate-fade-in-up">
+                              <div className="flex justify-between items-center mb-3">
+                                  <h4 className="text-xs font-bold uppercase text-slate-400">Chi tiết hiển thị</h4>
+                                  <button onClick={() => setShowMapSettings(false)} className="text-slate-400 hover:text-slate-600"><X className="w-3 h-3"/></button>
                               </div>
-                              <div className="relative z-10">
-                                 <MermaidChart code={mindMapCode} />
+                              <div className="space-y-2">
+                                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={mapOptions.showDifficulty} 
+                                      onChange={() => toggleMapOption('showDifficulty')}
+                                      className="rounded text-indigo-500 focus:ring-indigo-500"
+                                    />
+                                    Độ khó
+                                  </label>
+                                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={mapOptions.showHours} 
+                                      onChange={() => toggleMapOption('showHours')}
+                                      className="rounded text-indigo-500 focus:ring-indigo-500"
+                                    />
+                                    Thời gian (Giờ)
+                                  </label>
+                                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={mapOptions.showDeadline} 
+                                      onChange={() => toggleMapOption('showDeadline')}
+                                      className="rounded text-indigo-500 focus:ring-indigo-500"
+                                    />
+                                    Deadline
+                                  </label>
                               </div>
+                            </div>
+                        )}
+                      </div>
+
+                      <button 
+                        onClick={handleGenerateMindMap}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold text-sm transition-all active:scale-95 border border-indigo-200 dark:border-indigo-800"
+                        disabled={isGeneratingMap}
+                      >
+                        {isGeneratingMap ? <Loader2 className="w-4 h-4 animate-spin"/> : <Network className="w-4 h-4"/>}
+                        <span className="hidden sm:inline">Visual Map</span>
+                      </button>
+
+                      <button 
+                        onClick={handleSavePlan}
+                        className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all border border-emerald-200 dark:border-emerald-800 active:scale-95"
+                        title="Lưu kế hoạch"
+                      >
+                        <Save className="w-5 h-5"/>
+                      </button>
+
+                      <button 
+                        onClick={handleCopy}
+                        className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                        title="Sao chép nội dung"
+                      >
+                        {copied ? <Check className="w-5 h-5 text-emerald-500"/> : <Copy className="w-5 h-5"/>}
+                      </button>
+                      <button 
+                        onClick={handleDownload}
+                        className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                        title="Tải xuống (Markdown)"
+                      >
+                        <Download className="w-5 h-5"/>
+                      </button>
+                      <button 
+                        onClick={handlePrint}
+                        className="p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 active:scale-95"
+                        title="In / Lưu PDF"
+                      >
+                        <Printer className="w-5 h-5"/>
+                      </button>
+                </div>
+              </div>
+              
+              {/* Content Body */}
+              <div className="p-6 sm:p-12 text-lg flex-grow bg-slate-50/20 dark:bg-slate-950/20 print:bg-white">
+                {refining ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                      <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: theme.palette[0] }} />
+                      <p className="font-medium">AI đang điều chỉnh kế hoạch theo ý bạn...</p>
+                    </div>
+                ) : (
+                    <div className="max-w-4xl mx-auto">
+                      
+                      {/* --- WELLBEING SCORECARD --- */}
+                      <div className="mb-12 p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl animate-fade-in-up">
+                          <div className="flex items-center gap-3 mb-8">
+                            <div className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                              <Activity className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">Wellbeing Analysis</h3>
+                                <p className="text-sm font-medium text-slate-400">Phân tích tác động và dự đoán sự cải thiện</p>
+                            </div>
                           </div>
-                       </div>
-                    )}
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
+                            {/* Before */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm font-bold uppercase tracking-wider text-slate-500">
+                                  <span>Hiện tại (Stress Load)</span>
+                                  <span>{wellbeingStats.current}/100</span>
+                                </div>
+                                <div className="h-6 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-1">
+                                  <div 
+                                      className="h-full rounded-full bg-slate-400 transition-all duration-1000" 
+                                      style={{ width: `${wellbeingStats.current}%` }}
+                                  ></div>
+                                </div>
+                            </div>
+                            
+                            {/* After */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                  <span>Dự kiến (Tối ưu hóa)</span>
+                                  <span>{wellbeingStats.projected}/100</span>
+                                </div>
+                                <div className="h-6 w-full bg-teal-50 dark:bg-teal-900/20 rounded-full overflow-hidden p-1 relative">
+                                    {/* Shadow Bar for previous value to show delta */}
+                                  <div 
+                                      className="absolute top-1 left-1 h-4 rounded-full bg-slate-200 dark:bg-slate-700 opacity-30" 
+                                      style={{ width: `${wellbeingStats.current}%` }}
+                                  ></div>
+                                  <div 
+                                      className="h-full rounded-full bg-teal-500 transition-all duration-1000 shadow-[0_0_15px_rgba(20,184,166,0.5)]" 
+                                      style={{ width: `${wellbeingStats.projected}%` }}
+                                  ></div>
+                                </div>
+                            </div>
+                          </div>
 
-                    {renderMarkdown(guidebook)}
-                  </div>
-               )}
+                          {/* Factor Analysis Pills */}
+                          <div className="grid grid-cols-3 gap-3 mb-6">
+                              {wellbeingStats.factors && (
+                                <>
+                                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center">
+                                    <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Workload</div>
+                                    <div className={`text-sm font-bold ${wellbeingStats.factors.workload === 'Quá tải' ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                      {wellbeingStats.factors.workload}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center">
+                                    <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Pressure</div>
+                                    <div className={`text-sm font-bold ${wellbeingStats.factors.pressure.includes('Gấp') ? 'text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                      {wellbeingStats.factors.pressure}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center">
+                                    <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Capacity</div>
+                                    <div className={`text-sm font-bold ${wellbeingStats.factors.capacity.includes('Thấp') ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                      {wellbeingStats.factors.capacity}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-900/10 border border-teal-100 dark:border-teal-800/50 flex gap-3 text-sm text-teal-800 dark:text-teal-300">
+                            <Info className="w-5 h-5 flex-shrink-0 opacity-80" />
+                            <p className="font-medium leading-relaxed">
+                                Thuật toán dự đoán tăng <strong>+{wellbeingStats.projected - wellbeingStats.current} điểm</strong> nhờ giảm tải áp lực deadline và điều phối năng lượng hợp lý.
+                            </p>
+                          </div>
+                      </div>
+
+                      {/* Visual AI MindMap Section (Inserted if generated) */}
+                      {mindMapCode && (
+                        <div className="mb-10 p-1 bg-gradient-to-br from-violet-500 via-indigo-500 to-fuchsia-500 rounded-[2rem] shadow-xl animate-fade-in-up">
+                            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-[1.9rem] p-6 sm:p-8 relative overflow-hidden">
+                                {/* Decorative Grid Background for Map */}
+                                <div className="absolute inset-0 bg-dot-pattern opacity-30 pointer-events-none"></div>
+                                
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 relative z-10">
+                                  <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl text-white shadow-md">
+                                    <Network className="w-5 h-5"/>
+                                  </div>
+                                  <h3 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight">SmartStudy Visual Map</h3>
+                                  <span className="ml-auto text-xs font-bold uppercase text-white bg-slate-800 px-3 py-1.5 rounded-full shadow-sm">Live Render</span>
+                                </div>
+                                <div className="relative z-10">
+                                  <MermaidChart code={mindMapCode} />
+                                </div>
+                            </div>
+                        </div>
+                      )}
+
+                      {renderMarkdown(guidebook)}
+                    </div>
+                )}
+              </div>
+
+              {/* Feedback Loop Footer */}
+              <div className="bg-white dark:bg-slate-800/80 p-6 border-t border-slate-100 dark:border-slate-700 print:hidden">
+                <div className="max-w-3xl mx-auto flex flex-col gap-3">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+                      <MessageSquare className="w-4 h-4" />
+                      Phản hồi & Điều chỉnh (Feedback Loop)
+                    </div>
+                    <div className="flex gap-3 flex-col sm:flex-row">
+                      <input 
+                        type="text" 
+                        value={userComment}
+                        onChange={(e) => setUserComment(e.target.value)}
+                        placeholder="Ví dụ: Tôi muốn học môn Toán vào buổi sáng..."
+                        className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner w-full"
+                        style={{ 
+                          // @ts-ignore
+                          '--tw-ring-color': theme.palette[0] 
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+                      />
+                      <button 
+                        onClick={handleRefine}
+                        disabled={!userComment.trim() || refining}
+                        className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        style={{ 
+                          background: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})`
+                        }}
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>Gửi</span>
+                      </button>
+                    </div>
+                </div>
+              </div>
             </div>
 
-            {/* Feedback Loop Footer */}
-            <div className="bg-white dark:bg-slate-800/80 p-6 border-t border-slate-100 dark:border-slate-700 print:hidden">
-               <div className="max-w-3xl mx-auto flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
-                    <MessageSquare className="w-4 h-4" />
-                    Phản hồi & Điều chỉnh (Feedback Loop)
-                  </div>
-                  <div className="flex gap-3 flex-col sm:flex-row">
-                    <input 
-                      type="text" 
-                      value={userComment}
-                      onChange={(e) => setUserComment(e.target.value)}
-                      placeholder="Ví dụ: Tôi muốn học môn Toán vào buổi sáng..."
-                      className="flex-grow bg-slate-50 dark:bg-slate-900 border-transparent rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 transition-all shadow-inner w-full"
-                      style={{ 
-                        // @ts-ignore
-                        '--tw-ring-color': theme.palette[0] 
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
-                    />
-                    <button 
-                      onClick={handleRefine}
-                      disabled={!userComment.trim() || refining}
-                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      style={{ 
-                         background: `linear-gradient(to right, ${theme.palette[0]}, ${theme.palette[1]})`
-                      }}
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>Gửi</span>
-                    </button>
-                  </div>
-               </div>
-            </div>
-          </div>
+            {/* INTEGRATE MINI CHATBOT HERE */}
+            <MiniChatbot 
+              planContext={guidebook} 
+              profile={studentProfile} 
+              taskSummary={`${tasks.length} tasks`}
+              theme={theme}
+            />
+          </>
         ) : (
            <div className="h-full border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center bg-slate-50/50 dark:bg-slate-900/20 min-h-[500px]">
               <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-4">

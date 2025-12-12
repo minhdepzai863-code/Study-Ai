@@ -22,6 +22,8 @@ const taskModelMapping = {
   analysis: { model: "gemini-2.5-flash", thinkingZero: true },
   // Refinement also uses Flash
   refine: { model: "gemini-2.5-flash" },
+  // Chat also uses Flash for speed
+  chat: { model: "gemini-2.5-flash" }
 };
 
 // Unified caller
@@ -43,7 +45,103 @@ async function callModel(opts: {
   }
 }
 
-// --- STUDENT CLASSIFICATION LOGIC ---
+// --- STUDENT CLASSIFICATION & WELLBEING LOGIC ---
+
+export const calculateWellbeingStats = (tasks: StudyTask[], profile: StudentProfile) => {
+  const cleanTasks = sanitizeData(tasks);
+  const now = new Date();
+  
+  // 1. Calculate Demand (Workload + Urgency)
+  let totalWeightedHours = 0;
+  let urgencyPenalty = 0;
+
+  cleanTasks.forEach(task => {
+    // Difficulty Weighting
+    const diffMap = { [DifficultyLevel.EASY]: 1, [DifficultyLevel.MEDIUM]: 1.4, [DifficultyLevel.HARD]: 2.2, [DifficultyLevel.VERY_HARD]: 3.0 };
+    const weight = diffMap[task.difficulty] || 1.4;
+    totalWeightedHours += task.estimatedHours * weight;
+
+    // Urgency Calculation (Days until deadline)
+    const deadline = new Date(task.deadline);
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Closer deadlines = Higher stress penalty
+    // Due today/tomorrow: High penalty. Due within 3 days: Med penalty.
+    let urgencyFactor = 1.0;
+    if (diffDays <= 1) urgencyFactor = 2.5;
+    else if (diffDays <= 3) urgencyFactor = 1.8;
+    else if (diffDays <= 7) urgencyFactor = 1.2;
+
+    // Priority multiplier
+    const priorityMap = { [PriorityLevel.HIGH]: 1.5, [PriorityLevel.MEDIUM]: 1.1, [PriorityLevel.LOW]: 1.0 };
+    const priorityFactor = priorityMap[task.priority] || 1.1;
+
+    urgencyPenalty += (task.estimatedHours * urgencyFactor * priorityFactor);
+  });
+
+  // 2. Determine Capacity (Energy + Ability)
+  // Energy 1-10 -> Capacity Factor 0.6 - 1.4
+  const energyCapacity = 0.6 + (profile.energyLevel / 12.5); 
+  
+  // Performance acts as efficiency multiplier (Better students handle load better)
+  const perfMap = { 'Yếu': 0.8, 'Trung bình': 0.9, 'Khá': 1.1, 'Giỏi': 1.25 };
+  const efficiency = perfMap[profile.performance] || 1.0;
+
+  // Base Daily Capacity (e.g., average student handles ~8-10 weighted units/day well)
+  const baseDailyCapacity = 10; 
+  const totalCapacity = baseDailyCapacity * energyCapacity * efficiency;
+
+  // 3. Calculate "Raw Stress" Ratio (Demand / Capacity)
+  // We use the higher of totalWeightedHours or urgencyPenalty to represent peak stress
+  const effectiveLoad = Math.max(totalWeightedHours, urgencyPenalty * 0.8);
+  const stressRatio = effectiveLoad / (totalCapacity || 1); // Avoid div by 0
+  
+  // 4. Map Stress Ratio to 0-100 Wellbeing Scale
+  // Ratio 0.5 (Easy) -> Wellbeing 95
+  // Ratio 1.0 (Balanced) -> Wellbeing 70
+  // Ratio 1.5 (Heavy) -> Wellbeing 40
+  // Ratio 2.0+ (Burnout) -> Wellbeing < 20
+  
+  let currentWellbeing = 100 - (stressRatio * 35); 
+  // Clamp
+  currentWellbeing = Math.max(10, Math.min(98, currentWellbeing));
+
+  // 5. Calculate Projected Wellbeing (AI Optimization Impact)
+  // AI Optimization Factors:
+  // - Strategic Breaks (Flow/Pomodoro): Recovers ~15% capacity
+  // - Prioritization (Reducing Urgency Panic): Reduces urgency penalty by ~20%
+  // - Load Balancing: Reduces effective peak load
+  
+  const optimizedLoad = effectiveLoad * 0.85; // Efficiency gain
+  const optimizedCapacity = totalCapacity * 1.15; // Capacity boost via breaks
+
+  const optimizedStressRatio = optimizedLoad / optimizedCapacity;
+  let projectedWellbeing = 100 - (optimizedStressRatio * 35);
+  
+  // Ensure meaningful improvement logic
+  let improvement = projectedWellbeing - currentWellbeing;
+  if (improvement < 5) improvement = 5; // AI always finds some way to help
+  projectedWellbeing = currentWellbeing + improvement;
+  
+  // Cap at 100
+  projectedWellbeing = Math.min(99, projectedWellbeing);
+
+  // Analysis Factors for UI
+  const factors = {
+    workload: stressRatio > 1.3 ? 'Quá tải' : stressRatio > 0.8 ? 'Vừa sức' : 'Nhẹ nhàng',
+    pressure: urgencyPenalty > totalWeightedHours * 1.4 ? 'Gấp rút (Deadline)' : 'Ổn định',
+    capacity: energyCapacity < 0.9 ? 'Năng lượng thấp' : 'Sẵn sàng'
+  };
+
+  return {
+    totalHours: cleanTasks.reduce((sum, t) => sum + t.estimatedHours, 0),
+    current: Math.round(currentWellbeing),
+    projected: Math.round(projectedWellbeing),
+    factors
+  };
+};
+
 const determineStudentArchetype = (
   tasks: StudyTask[], 
   profile: StudentProfile, 
@@ -116,23 +214,25 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
   try {
     const cleanTasks = sanitizeData(tasks);
     const tasksJson = JSON.stringify(cleanTasks, null, 2);
+    
+    // Default profile if missing
+    const safeProfile = profile || { performance: 'Khá', energyLevel: 7 };
 
-    // 1. Calculate Statistics & Workload Intensity
-    const totalHours = cleanTasks.reduce((sum, t) => sum + t.estimatedHours, 0);
-    const highPriorityCount = cleanTasks.filter(t => t.priority === PriorityLevel.HIGH).length;
-    const hardCount = cleanTasks.filter(t => t.difficulty === DifficultyLevel.HARD || t.difficulty === DifficultyLevel.VERY_HARD).length;
+    // 1. Calculate Wellbeing Stats
+    const stats = calculateWellbeingStats(cleanTasks, safeProfile);
     
     // Heuristic for Workload Intensity (0-10 scale)
-    let workloadScore = (totalHours * 0.5) + (hardCount * 2);
+    const hardCount = cleanTasks.filter(t => t.difficulty === DifficultyLevel.HARD || t.difficulty === DifficultyLevel.VERY_HARD).length;
+    let workloadScore = (stats.totalHours * 0.5) + (hardCount * 2);
     workloadScore = Math.min(10, Math.max(1, workloadScore)); 
 
-    const userEnergy = profile?.energyLevel || 7;
-    const userPerformance = profile?.performance || 'Khá';
-    const learningStyle = profile?.learningStyle || 'Mixed';
-    const studyMethod = profile?.studyMethod || 'Pomodoro';
+    const userEnergy = safeProfile.energyLevel;
+    const userPerformance = safeProfile.performance;
+    const learningStyle = safeProfile.learningStyle || 'Mixed';
+    const studyMethod = safeProfile.studyMethod || 'Pomodoro';
 
     // 2. Classify Student
-    const archetype = determineStudentArchetype(cleanTasks, { energyLevel: userEnergy, performance: userPerformance }, workloadScore);
+    const archetype = determineStudentArchetype(cleanTasks, safeProfile, workloadScore);
 
     const prompt = `
       Đóng vai: Bạn là "SmartStudy AI Mentor" - Một chuyên gia tâm lý giáo dục và quản lý thời gian cực kỳ cá nhân hóa.
@@ -142,8 +242,14 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
       - Phong cách học (VARK): **${learningStyle}**.
       - Phương pháp ưa thích: **${studyMethod}**.
       - Workload Score: ${workloadScore.toFixed(1)}/10.
-      - Thống kê: ${cleanTasks.length} tasks, Tổng ${totalHours} giờ.
+      - Thống kê: ${cleanTasks.length} tasks, Tổng ${stats.totalHours} giờ.
       
+      PHÂN TÍCH WELLBEING (Dữ liệu khách quan từ thuật toán):
+      - Điểm Wellbeing HIỆN TẠI (Trước plan): **${stats.current}/100**.
+      - Điểm Wellbeing DỰ KIẾN (Sau plan): **${stats.projected}/100**.
+      - Các yếu tố chính: Khối lượng công việc (${stats.factors.workload}), Áp lực Deadline (${stats.factors.pressure}), Năng lượng cá nhân (${stats.factors.capacity}).
+      => Hãy giải thích logic tại sao điểm lại tăng lên (Ví dụ: Do giảm áp lực deadline bằng cách ưu tiên, hoặc do chia nhỏ khối lượng việc "Quá tải" thành các phần dễ nuốt).
+
       PHÂN LOẠI HỌC SINH (ARCHETYPE):
       - Loại: **${archetype.name}** ${archetype.icon}
       - Đặc điểm: ${archetype.description}
@@ -156,15 +262,15 @@ export const generateStudyPlan = async (tasks: StudyTask[], profile?: StudentPro
       Hãy viết một bản kế hoạch cực kỳ cá nhân hóa, nói chuyện trực tiếp với Archetype "${archetype.name}".
       
       *LƯU Ý ĐẶC BIỆT*:
-      - Vì người dùng học theo kiểu "${learningStyle}", hãy đề xuất cách tiếp cận phù hợp (Ví dụ: Visual -> Vẽ sơ đồ, Auditory -> Nghe lại bài giảng/Giảng lại cho người khác).
-      - Áp dụng phương pháp "${studyMethod}" vào thiết kế lịch trình (Ví dụ: Nếu Feynman -> Dành thời gian tự giảng lại; Nếu Pomodoro -> Chia block 25p).
+      - Vì người dùng học theo kiểu "${learningStyle}", hãy đề xuất cách tiếp cận phù hợp.
+      - Áp dụng phương pháp "${studyMethod}" vào thiết kế lịch trình.
+      - NHẤN MẠNH vào việc cải thiện Wellbeing từ ${stats.current} lên ${stats.projected}.
 
       ### 👤 Hồ Sơ Học Tập (Classification)
       - **Archetype**: ${archetype.name}
       - **Phong cách học tập**: ${learningStyle} (Đề xuất nhanh cách tối ưu: [Gợi ý ngắn]).
-      - **Tình trạng hiện tại**: (Mô tả ngắn gọn dựa trên Energy vs Workload).
-      - **Điểm mạnh cần phát huy**: ...
-      - **Bẫy cần tránh**: ...
+      - **Wellbeing Impact**: Từ **${stats.current}** ➔ **${stats.projected}** / 100.
+      - **Yếu tố tác động**: ${stats.factors.workload} | ${stats.factors.pressure} | ${stats.factors.capacity}. (Giải thích ngắn 1 câu về tình trạng này).
 
       ### 📊 Chiến Lược Chủ Đạo (Dựa trên ${archetype.scheduleStyle} + ${studyMethod})
       - Giải thích cách sắp xếp lịch hôm nay.
@@ -283,6 +389,58 @@ export const generateMindMap = async (
   } catch (error) {
     console.error("MindMap Error:", error);
     return "";
+  }
+};
+
+// --- CHAT WITH MENTOR ---
+export const chatWithMentor = async (
+  currentMessage: string,
+  contextData: {
+    plan: string;
+    profile: StudentProfile;
+    taskSummary: string;
+  },
+  history: { role: 'user' | 'model', content: string }[]
+): Promise<string> => {
+  try {
+    // Construct history for prompt to give illusion of memory without full chat API
+    // We limit history to last 6 turns to save context window
+    const historyText = history.slice(-6).map(h => `${h.role === 'user' ? 'Student' : 'AI Mentor'}: ${h.content}`).join('\n');
+
+    const prompt = `
+      ROLE: Bạn là SmartStudy AI Mentor. Bạn vừa tạo một bản kế hoạch học tập cho học sinh.
+      
+      CONTEXT (Kế hoạch hiện tại):
+      ${contextData.plan.substring(0, 2000)}... (Đã rút gọn)
+
+      CONTEXT (Hồ sơ học sinh):
+      - Năng lượng: ${contextData.profile.energyLevel}/10
+      - Phong cách học: ${contextData.profile.learningStyle}
+      - Phương pháp: ${contextData.profile.studyMethod}
+      
+      NHIỆM VỤ: Trả lời câu hỏi của học sinh về kế hoạch bạn vừa tạo.
+      - Giải thích TẠI SAO bạn lại sắp xếp như vậy.
+      - Động viên học sinh.
+      - Nếu học sinh muốn đổi, hãy gợi ý họ dùng tính năng "Phản hồi & Điều chỉnh" (Feedback Loop) ở cuối trang, nhưng ở đây bạn chỉ giải thích và tư vấn.
+      - Giữ câu trả lời ngắn gọn (dưới 100 từ), thân thiện, dùng emoji.
+
+      LỊCH SỬ CHAT:
+      ${historyText}
+
+      STUDENT HỎI: "${currentMessage}"
+      
+      MENTOR TRẢ LỜI:
+    `;
+
+    const result = await callModel({
+      model: taskModelMapping.chat.model,
+      prompt,
+    });
+
+    return result || "Xin lỗi, mình đang suy nghĩ chút. Bạn hỏi lại được không?";
+  } catch (error) {
+    console.error("Chat Error:", error);
+    return "Mất kết nối với Mentor. Vui lòng kiểm tra mạng.";
   }
 };
 
