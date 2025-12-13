@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { StudyTask } from '../types';
 import { X, Play, Pause, RotateCcw, CheckCircle2, Coffee, Zap, Plus, Minus } from 'lucide-react';
 
@@ -124,8 +125,8 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ task, isOpen, 
   const waveColor2 = mode === 'FOCUS' ? theme.palette[1] : '#10b981';
   const waveColor3 = mode === 'FOCUS' ? theme.palette[2] : '#059669';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-md animate-fade-in overflow-hidden">
       {/* Inject Keyframes for Triple-Layer Wave Animation locally */}
       <style>{`
         @keyframes wave {
@@ -148,7 +149,7 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ task, isOpen, 
         .animate-bob { animation: bob 3s ease-in-out infinite; }
       `}</style>
 
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden relative">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden relative mx-4">
         
         {/* Background Ambient Glow */}
         <div className={`absolute top-0 left-0 w-full h-2 transition-all duration-1000 ${isActive ? 'w-full' : 'w-0'}`} style={{ backgroundColor: theme.palette[0] }}></div>
@@ -268,6 +269,7 @@ export const FocusTimerModal: React.FC<FocusTimerModalProps> = ({ task, isOpen, 
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
